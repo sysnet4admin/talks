@@ -15,4 +15,4 @@ spec:
     spec:
       containers:
       - name: host-mon
-        image: sysnet4admin/sleepy
+        image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim

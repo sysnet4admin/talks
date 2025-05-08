@@ -6,4 +6,4 @@ spec:
   hostNetwork: true
   containers:
     - name: nginx
-      image: nginx:1.27.2-alpine-slim
+      image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
