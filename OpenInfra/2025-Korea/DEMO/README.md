@@ -1,6 +1,6 @@
 ## Validating admission by CEL  
 
-This repo provide **PaC Pratice for KubeCon China 2025** 
+This repo provide **PaC Pratice for OpenInfra Korea 2025** 
 Attendee could run each of folder for your own testing purpose. 
 
 ```
