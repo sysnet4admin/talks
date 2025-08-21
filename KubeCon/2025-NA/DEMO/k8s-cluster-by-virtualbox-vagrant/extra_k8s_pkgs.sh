@@ -4,9 +4,9 @@
 EXTRA_PKGS_ADDR="https://raw.githubusercontent.com/sysnet4admin/IaC/main/k8s/extra-pkgs/v1.32"
 
 # deploy nfs-provisioner & storageclass as default 
-sh -c "$HOME/_Book_k8sInfra/ch3/3.4.3/nfs_exporter.sh dynamic-vol"
-kubectl create -f $HOME/_Book_k8sInfra/ch3/3.4.3/nfs-subdir-external-provisioner-v4.0.0.yaml
-kubectl create -f $HOME/_Book_k8sInfra/ch3/3.4.3/storageclass.yaml
+sh -c "$EXTRA_PKGS_ADDR/nfs_exporter.sh dynamic-vol"
+kubectl create -f $EXTRA_PKGS_ADDR/nfs-provisioner-v4.0.2.yaml
+kubectl create -f $EXTRA_PKGS_ADDR/storageclass.yaml
 kubectl annotate storageclass managed-nfs-storage storageclass.kubernetes.io/is-default-class=true
 
 # config cilium layer2 mode 
@@ -21,7 +21,7 @@ kubectl annotate storageclass managed-nfs-storage storageclass.kubernetes.io/is-
 (sleep 600 && kubectl apply -f $EXTRA_PKGS_ADDR/cilium-iprange.yaml)&
 
 # install helm & add repo 
-$HOME/_Book_k8sInfra/ch5/5.2.3/install_helm.sh
+sh -c "$EXTRA_PKGS_ADDR/get_helm_v3.17.1.sh"
 helm repo add edu https://k8s-edu.github.io/Bkv2_main/helm-charts/
 
 # helm completion on bash-completion dir & alias+
