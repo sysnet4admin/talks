@@ -4,10 +4,22 @@
 EXTRA_PKGS_ADDR="https://raw.githubusercontent.com/sysnet4admin/IaC/main/k8s/extra-pkgs/v1.32"
 
 # deploy nfs-provisioner & storageclass as default 
-sh -c "$EXTRA_PKGS_ADDR/nfs_exporter.sh dynamic-vol"
+curl -sSL "$EXTRA_PKGS_ADDR/nfs_exporter.sh" | bash -s dynamic-vol
 kubectl create -f $EXTRA_PKGS_ADDR/nfs-provisioner-v4.0.2.yaml
 kubectl create -f $EXTRA_PKGS_ADDR/storageclass.yaml
 kubectl annotate storageclass managed-nfs-storage storageclass.kubernetes.io/is-default-class=true
+
+# nfs change from default to nfs-provisioner ns 
+kubectl create namespace nfs-provisioner
+kubectl get serviceaccount nfs-client-provisioner -n default -o yaml | \
+sed 's/namespace: default/namespace: nfs-provisioner/' | \
+kubectl apply -f -
+kubectl get deployment nfs-client-provisioner -n default -o yaml | \
+sed 's/namespace: default/namespace: nfs-provisioner/' | \
+kubectl apply -f -
+kubectl rollout restart deployment nfs-client-provisioner -n nfs-provisioner
+kubectl delete deployment nfs-client-provisioner -n default
+kubectl delete serviceaccount nfs-client-provisioner -n default
 
 # config cilium layer2 mode 
 # split cilium CRD due to it cannot apply at once. 
@@ -21,10 +33,12 @@ kubectl annotate storageclass managed-nfs-storage storageclass.kubernetes.io/is-
 (sleep 600 && kubectl apply -f $EXTRA_PKGS_ADDR/cilium-iprange.yaml)&
 
 # install helm & add repo 
-sh -c "$EXTRA_PKGS_ADDR/get_helm_v3.17.1.sh"
+curl -sSL "$EXTRA_PKGS_ADDR/get_helm_v3.17.1.sh" | bash 
 helm repo add edu https://k8s-edu.github.io/Bkv2_main/helm-charts/
 
 # helm completion on bash-completion dir & alias+
 helm completion bash > /etc/bash_completion.d/helm
 echo 'alias h=helm' >> ~/.bashrc
 echo 'complete -F __start_helm h' >> ~/.bashrc
+
+
