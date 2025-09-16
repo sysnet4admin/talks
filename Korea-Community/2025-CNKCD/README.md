@@ -4,6 +4,5 @@
 - **Link:** https://kcd-korea.net/schedule
 - **Youtube:** None 
 - **KO-Doc:** [인공지능 에이전트로 관리하는 쿠버네티스 신세계.pdf](https://)
----
-- **KO-Doc:** None 
+
 
