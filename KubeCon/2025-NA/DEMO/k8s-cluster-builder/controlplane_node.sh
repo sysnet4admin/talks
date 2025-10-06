@@ -21,6 +21,7 @@ kubectl completion bash > /etc/bash_completion.d/kubectl
 # alias kubectl to k 
 echo 'alias k=kubectl'               >> ~/.bashrc
 echo "alias ka='kubectl apply -f'"   >> ~/.bashrc
+echo "alias kd='kubectl delete'"   >> ~/.bashrc
 echo "alias kg-po-ip-stat-no='kubectl get pods -o=custom-columns=\
 NAME:.metadata.name,IP:.status.podIP,STATUS:.status.phase,NODE:.spec.nodeName'" \
                                      >> ~/.bashrc 
@@ -28,15 +29,15 @@ echo 'complete -F __start_kubectl k' >> ~/.bashrc
 
 # git clone talks source 
 git clone https://github.com/sysnet4admin/talks
-mv /home/vagrant/_talks $HOME
-find $HOME/_talks -regex ".*\.\(sh\)" -exec chmod 700 {} \;
+mv /home/vagrant/talks $HOME
+find $HOME/talks -regex ".*\.\(sh\)" -exec chmod 700 {} \;
 
 # make rerepo-talks and input proper permission
 cat <<EOF > /usr/local/bin/rerepo-talks
 #!/usr/bin/env bash
-rm -rf $HOME/_talks
-git clone https://github.com/sysnet4admin/talks $HOME/_talks
-find $HOME/_talks -regex ".*\.\(sh\)" -exec chmod 700 {} \;
+rm -rf $HOME/talks
+git clone https://github.com/sysnet4admin/talks $HOME/talks
+find $HOME/talks -regex ".*\.\(sh\)" -exec chmod 700 {} \;
 EOF
 chmod 700 /usr/local/bin/rerepo-talks
 
