@@ -40,3 +40,5 @@ find $HOME/_talks -regex ".*\.\(sh\)" -exec chmod 700 {} \;
 EOF
 chmod 700 /usr/local/bin/rerepo-talks
 
+# remove control-plane label only 
+kubectl label node cp-k8s node-role.kubernetes.io/control-plane- node.kubernetes.io/exclude-from-external-load-balancers-
