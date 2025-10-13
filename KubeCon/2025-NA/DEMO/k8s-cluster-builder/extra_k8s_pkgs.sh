@@ -41,8 +41,7 @@ helm completion bash > /etc/bash_completion.d/helm
 echo 'alias h=helm' >> ~/.bashrc
 echo 'complete -F __start_helm h' >> ~/.bashrc
 
-# configure labels after 10mins
-
+# configure labels after 570s
 # remove control-plane label only
 # add disktype, zone
 cat > /tmp/apply-labels.sh <<'EOF'
