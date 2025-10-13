@@ -41,4 +41,24 @@ helm completion bash > /etc/bash_completion.d/helm
 echo 'alias h=helm' >> ~/.bashrc
 echo 'complete -F __start_helm h' >> ~/.bashrc
 
+# configure labels after 10mins
+
+# remove control-plane label only
+# add disktype, zone
+cat > /tmp/apply-labels.sh <<'EOF'
+#!/bin/bash
+sleep 570
+kubectl label node cp-k8s node-role.kubernetes.io/control-plane- node.kubernetes.io/exclude-from-external-load-balancers-
+kubectl label nodes w1-k8s disktype=ssd zone=zone-a
+kubectl label nodes w2-k8s disktype=hdd zone=zone-a
+kubectl label nodes w3-k8s disktype=ssd zone=zone-b
+kubectl label nodes w4-k8s disktype=hdd zone=zone-b
+kubectl label nodes w5-k8s disktype=ssd zone=zone-c
+kubectl label nodes w6-k8s disktype=hdd zone=zone-c
+kubectl taint nodes w1-k8s gpu=nvidia:NoSchedule
+kubectl taint nodes w4-k8s maintenance=true:PreferNoSchedule
+EOF
+chmod +x /tmp/apply-labels.sh
+/tmp/apply-labels.sh &
+
 

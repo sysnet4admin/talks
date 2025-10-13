@@ -25,6 +25,9 @@ echo "alias kd='kubectl delete -f'"   >> ~/.bashrc
 echo "alias kg-po-ip-stat-no='kubectl get pods -o=custom-columns=\
 NAME:.metadata.name,IP:.status.podIP,STATUS:.status.phase,NODE:.spec.nodeName'" \
                                      >> ~/.bashrc 
+echo "alias kg-node-labels='kubectl get nodes -L zone,disktype'"   >> ~/.bashrc
+echo "alias kg-node-taints='kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints'"   >> ~/.bashrc
+
 echo 'complete -F __start_kubectl k' >> ~/.bashrc
 
 # git clone talks source 
@@ -41,5 +44,3 @@ find $HOME/talks -regex ".*\.\(sh\)" -exec chmod 700 {} \;
 EOF
 chmod 700 /usr/local/bin/rerepo-talks
 
-# remove control-plane label only 
-kubectl label node cp-k8s node-role.kubernetes.io/control-plane- node.kubernetes.io/exclude-from-external-load-balancers-
