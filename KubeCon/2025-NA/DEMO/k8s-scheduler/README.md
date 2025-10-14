@@ -324,6 +324,27 @@ kubectl get events --sort-by='.lastTimestamp' | grep FailedScheduling
 
 ## Advanced Topics
 
+### DRA (Dynamic Resource Allocation)
+
+Dynamic Resource Allocation is a Kubernetes feature for managing specialized hardware resources (GPUs, FPGAs, etc.) through a more flexible API than traditional resource requests.
+
+**Why not included in this demo:**
+- Requires DRA-compatible drivers (e.g., NVIDIA GPU Operator with DRA support)
+- Requires actual hardware devices or device plugins
+- Complex setup beyond basic Kubernetes cluster requirements
+- Not suitable for VM-based demo environments
+
+**Where to learn more:**
+- DRA examples and detailed documentation are available in `CLAUDE.md`
+- DRA operates across multiple scheduling stages (Stage 2 Filter, Stage 3 Score, Stage 4 Binding)
+- Feature is enabled by default in Kubernetes v1.34+
+
+**If you want to test DRA:**
+1. Install a DRA-compatible driver in your cluster
+2. Verify ResourceSlices exist: `kubectl get resourceslices`
+3. Create DeviceClass for your devices
+4. Refer to examples in `CLAUDE.md`
+
 ### Custom Scheduler
 
 To test with a custom scheduler:
