@@ -14,9 +14,7 @@ This demo provides hands-on examples for understanding how Kubernetes schedules 
 
 ## Kubernetes Version
 
-- Tested on Kubernetes v1.31+
-- Compatible with v1.34
-- DRA (Dynamic Resource Allocation) examples included
+- Tested on Kubernetes v1.34
 
 ## Directory Structure
 
@@ -316,20 +314,15 @@ kubectl get events --sort-by='.lastTimestamp' | grep FailedScheduling
 
 ### Common issues
 
-- **Stage 1**: nodeName to non-existent node
-- **Stage 2**: Missing toleration for tainted node
-- **Stage 2**: NodeSelector doesn't match any node
-- **Stage 2**: Insufficient resources on all nodes
-- **Stage 4**: schedulingGates blocking binding
+- **Stage 0**: ResourceQuota or LimitRange violations (rejected before scheduling)
+- **Stage 1**: nodeName to non-existent node (stays Pending)
+- **Stage 2**: Missing toleration for tainted node (no nodes available)
+- **Stage 2**: NodeSelector doesn't match any node (no nodes available)
+- **Stage 2**: Insufficient resources on all nodes (no nodes available)
+- **Stage 3**: All pods schedule successfully (soft constraints don't block)
+- **Stage 4**: schedulingGates blocking binding (SchedulingGated status)
 
 ## Advanced Topics
-
-### DRA (Dynamic Resource Allocation)
-
-DRA examples are documented in `CLAUDE.md` but require:
-- DRA feature gate (enabled by default in v1.34)
-- DRA driver installed (e.g., NVIDIA GPU Operator)
-- DeviceClass and ResourceSlices configured
 
 ### Custom Scheduler
 
@@ -351,7 +344,6 @@ spec:
 
 See `CLAUDE.md` for detailed technical reference including:
 - Complete scheduling flow diagrams
-- DRA integration details
 - Extension point documentation
 - Advanced configuration examples
 
