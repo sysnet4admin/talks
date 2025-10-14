@@ -12,7 +12,7 @@ Automated setup for a multi-node Kubernetes cluster suitable for scheduling demo
 
 - [Vagrant](https://www.vagrantup.com/) 2.3+
 - [VirtualBox](https://www.virtualbox.org/) 7.0+ (or another Vagrant provider)
-- Minimum 16GB RAM
+- Minimum 8GB RAM (10GB recommended for host OS overhead)
 - ~60GB disk space
 
 ## Node Configuration
@@ -73,7 +73,7 @@ kubectl get nodes
 - **k8s_pkg_cfg.sh**: Kubernetes package installation
 - **controlplane_node.sh**: Control plane initialization
 - **worker_nodes.sh**: Worker node join script
-- **extra_k8s_pkgs.sh**: Additional Kubernetes tools (Helm, k9s)
+- **extra_k8s_pkgs.sh**: Additional Kubernetes tools and configurations (Helm, NFS provisioner, Cilium networking, node labels/taints)
 
 ## Cluster Operations
 
@@ -149,14 +149,14 @@ vagrant destroy -f
 ## Resource Requirements
 
 - **Control Plane**: 2 vCPU, 2GB RAM
-- **Each Worker**: 2 vCPU, 2GB RAM
-- **Total**: 14 vCPU, 14GB RAM
+- **Each Worker**: 1 vCPU, 1GB RAM
+- **Total**: 8 vCPU, 8GB RAM
 
 ## Network Configuration
 
-- **Pod Network**: 172.16.0.0/16 (Calico)
+- **Pod Network**: 172.16.0.0/16 (Cilium v1.17.4)
 - **Service Network**: 10.96.0.0/12
-- **VM Network**: 192.168.56.0/24 (Host-only network)
+- **VM Network**: 192.168.1.0/24 (Host-only network)
 
 ## Notes
 
