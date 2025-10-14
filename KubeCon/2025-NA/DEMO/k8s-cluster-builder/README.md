@@ -12,7 +12,8 @@ Automated setup for a multi-node Kubernetes cluster suitable for scheduling demo
 
 - [Vagrant](https://www.vagrantup.com/) 2.3+
 - [VirtualBox](https://www.virtualbox.org/) 7.0+ (or another Vagrant provider)
-- Minimum 8GB RAM (10GB recommended for host OS overhead)
+- 4+ physical CPU cores (CPU overcommit supported)
+- 8GB RAM minimum (10GB recommended for host OS overhead)
 - ~60GB disk space
 
 ## Node Configuration
@@ -150,7 +151,8 @@ vagrant destroy -f
 
 - **Control Plane**: 2 vCPU, 2GB RAM
 - **Each Worker**: 1 vCPU, 1GB RAM
-- **Total**: 8 vCPU, 8GB RAM
+- **Total Allocated**: 8 vCPU (overcommitted), 8GB RAM
+- **Recommended Host**: 4+ physical CPU cores, 10GB RAM
 
 ## Network Configuration
 
