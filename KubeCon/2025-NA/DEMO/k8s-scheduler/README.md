@@ -1,0 +1,374 @@
+# Kubernetes Scheduler Deep Dive
+
+Comprehensive demonstration of Kubernetes scheduling across all 5 stages, from admission control to pod-node binding.
+
+## Overview
+
+This demo provides hands-on examples for understanding how Kubernetes schedules pods, covering:
+
+- **Stage 0**: Admission Control (API Server)
+- **Stage 1**: nodeName (Bypass Scheduler)
+- **Stage 2**: Scheduler Filter (Hard Constraints)
+- **Stage 3**: Scheduler Score (Soft Constraints)
+- **Stage 4**: Binding Cycle (Pod-Node Binding)
+
+## Kubernetes Version
+
+- Tested on Kubernetes v1.31+
+- Compatible with v1.34
+- DRA (Dynamic Resource Allocation) examples included
+
+## Directory Structure
+
+```
+k8s-scheduler/
+├── CLAUDE.md                    # Detailed technical reference
+├── comprehensive-test.yaml      # Combined example with all stages
+├── stage0/                      # Admission Control demos
+│   ├── 00-namespace.yaml
+│   ├── 01-limitrange.yaml
+│   ├── 02-resourcequota.yaml
+│   ├── 03-fail-limitrange.yaml
+│   └── 04-pass-limitrange.yaml
+├── stage1/                      # nodeName bypass demos
+│   ├── 01-pass-nodename-direct.yaml
+│   ├── 02-pass-no-nodename.yaml
+│   ├── 03-fail-nodename-notfound.yaml
+│   ├── 04-pass-nodename-bypass-taint.yaml
+│   └── 05-fail-no-nodename-taint.yaml
+├── stage2/                      # Filter (hard constraints) demos
+│   ├── 01-pass-nodeselector.yaml
+│   ├── 02-pass-required-affinity.yaml
+│   ├── 03-pass-toleration-required.yaml
+│   ├── 04-pass-resource-requests.yaml
+│   ├── 05-pass-pod-antiaffinity-1.yaml
+│   ├── 06-pass-pod-antiaffinity-2.yaml
+│   ├── 07-pass-topology-spread.yaml
+│   ├── 08-fail-nodeselector.yaml
+│   ├── 09-fail-required-affinity.yaml
+│   ├── 10-fail-toleration.yaml
+│   ├── 11-fail-resource-requests.yaml
+│   └── 12-fail-topology-spread.yaml
+├── stage3/                      # Score (soft constraints) demos
+│   ├── 01-cache-pod.yaml
+│   ├── 02-pass-preferred-nodeaffinity.yaml
+│   ├── 03-pass-preferred-podaffinity.yaml
+│   ├── 04-pass-prefer-no-schedule.yaml
+│   ├── 05-pass-no-prefer-toleration.yaml
+│   ├── 06-pass-topology-spread-soft.yaml
+│   ├── 07-lowscore-preferred-nodeaffinity.yaml
+│   ├── 08-lowscore-preferred-podaffinity.yaml
+│   └── 09-lowscore-topology-spread-soft.yaml
+└── stage4/                      # Binding cycle demos
+    ├── 01-block-scheduling-gate.yaml
+    ├── 02-pass-no-scheduling-gate.yaml
+    ├── 03-storageclass.yaml
+    ├── 04-persistentvolume.yaml
+    ├── 05-persistentvolumeclaim.yaml
+    └── 06-pass-volume-late-binding.yaml
+```
+
+## Prerequisites
+
+### Cluster Setup
+
+You must have a Kubernetes cluster with the following node configuration:
+
+| Node | Zone | Disk Type | Taints |
+|------|------|-----------|--------|
+| w1-k8s | zone-a | ssd | gpu:nvidia=NoSchedule |
+| w2-k8s | zone-a | hdd | - |
+| w3-k8s | zone-b | ssd | - |
+| w4-k8s | zone-b | hdd | maintenance:true=PreferNoSchedule |
+| w5-k8s | zone-c | ssd | - |
+| w6-k8s | zone-c | hdd | - |
+
+> **Note**: Use the `k8s-cluster-builder` directory to set up this cluster automatically.
+
+### Verify Cluster Configuration
+
+```bash
+# Check node labels
+kubectl get nodes --show-labels | grep -E "zone=|disktype="
+
+# Check node taints
+kubectl describe nodes | grep -A 3 "Taints:"
+```
+
+## Quick Start
+
+### Stage 0: Admission Control
+
+Test ResourceQuota and LimitRange enforcement at the API server level:
+
+```bash
+# Deploy namespace and quotas
+kubectl apply -f stage0/00-namespace.yaml
+kubectl apply -f stage0/01-limitrange.yaml
+kubectl apply -f stage0/02-resourcequota.yaml
+
+# Test: This should FAIL (exceeds LimitRange)
+kubectl apply -f stage0/03-fail-limitrange.yaml
+
+# Test: This should PASS
+kubectl apply -f stage0/04-pass-limitrange.yaml
+
+# Verify
+kubectl get pods -n scheduling-demo
+kubectl describe limitrange demo-limits -n scheduling-demo
+
+# Cleanup
+kubectl delete namespace scheduling-demo
+```
+
+### Stage 1: nodeName (Scheduler Bypass)
+
+Demonstrates how `nodeName` bypasses all scheduler logic:
+
+```bash
+# Test: Direct placement with nodeName
+kubectl apply -f stage1/01-pass-nodename-direct.yaml
+
+# Test: Scheduler handles placement
+kubectl apply -f stage1/02-pass-no-nodename.yaml
+
+# Test: Non-existent node (stays Pending)
+kubectl apply -f stage1/03-fail-nodename-notfound.yaml
+
+# Test: Bypass taint check (succeeds despite no toleration)
+kubectl apply -f stage1/04-pass-nodename-bypass-taint.yaml
+
+# Test: Scheduler enforces taint (fails without toleration)
+kubectl apply -f stage1/05-fail-no-nodename-taint.yaml
+
+# Check results
+kubectl get pods -o wide
+
+# Cleanup
+kubectl delete pods -l 'test in (stage1-nodename,stage1-scheduler,stage1-bypass,stage1-fail)'
+```
+
+### Stage 2: Scheduler Filter (Hard Constraints)
+
+All conditions must be satisfied:
+
+```bash
+# Deploy all stage2 tests
+kubectl apply -f stage2/
+
+# Check successful placements
+kubectl get pods -l test=stage2-filter -o wide
+
+# Check failed pods (remain Pending)
+kubectl get pods -l test=stage2-fail -o wide
+
+# Describe a failed pod to see why
+kubectl describe pod stage2-fail-nodeselector
+
+# Cleanup
+kubectl delete pods -l 'test in (stage2-filter,stage2-fail)'
+```
+
+### Stage 3: Scheduler Score (Soft Constraints)
+
+Preferences influence placement but don't block scheduling:
+
+```bash
+# Deploy cache pod first (needed for PodAffinity tests)
+kubectl apply -f stage3/01-cache-pod.yaml
+
+# Deploy pass tests (high scores - good matches)
+kubectl apply -f stage3/02-pass-preferred-nodeaffinity.yaml
+kubectl apply -f stage3/03-pass-preferred-podaffinity.yaml
+kubectl apply -f stage3/04-pass-prefer-no-schedule.yaml
+kubectl apply -f stage3/05-pass-no-prefer-toleration.yaml
+kubectl apply -f stage3/06-pass-topology-spread-soft.yaml
+
+# Deploy lowscore tests (low scores - poor matches)
+kubectl apply -f stage3/07-lowscore-preferred-nodeaffinity.yaml
+kubectl apply -f stage3/08-lowscore-preferred-podaffinity.yaml
+kubectl apply -f stage3/09-lowscore-topology-spread-soft.yaml
+
+# All pods should be Running, but on different nodes
+kubectl get pods -l 'test in (stage3-score,stage3-lowscore)' -o wide
+
+# Compare: Pass vs Lowscore placements
+kubectl get pod stage3-pass-preferred-podaffinity -o wide
+kubectl get pod stage3-lowscore-preferred-podaffinity -o wide
+
+# Cleanup
+kubectl delete pods -l 'test in (stage3-score,stage3-lowscore)'
+kubectl delete pod cache-pod
+```
+
+### Stage 4: Binding Cycle
+
+Control the final binding phase:
+
+```bash
+# Deploy storage infrastructure
+kubectl apply -f stage4/03-storageclass.yaml
+kubectl apply -f stage4/04-persistentvolume.yaml
+kubectl apply -f stage4/05-persistentvolumeclaim.yaml
+
+# Deploy pods
+kubectl apply -f stage4/01-block-scheduling-gate.yaml
+kubectl apply -f stage4/02-pass-no-scheduling-gate.yaml
+kubectl apply -f stage4/06-pass-volume-late-binding.yaml
+
+# Check: Gated pod should be "SchedulingGated"
+kubectl get pod stage4-block-scheduling-gate -o wide
+
+# Check: schedulingGates are present
+kubectl get pod stage4-block-scheduling-gate -o jsonpath='{.spec.schedulingGates}'
+
+# Unblock the gated pod
+kubectl patch pod stage4-block-scheduling-gate \
+  --type=json -p='[{"op": "remove", "path": "/spec/schedulingGates"}]'
+
+# Verify: All pods should now be Running
+kubectl get pods -l 'test in (stage4-pass,stage4-block)' -o wide
+
+# Check: PVC should be Bound
+kubectl get pvc
+
+# Cleanup
+kubectl delete pods -l 'test in (stage4-pass,stage4-block)'
+kubectl delete pvc demo-pvc
+kubectl delete pv demo-pv-w1
+kubectl delete sc late-binding-sc
+```
+
+## Key Concepts
+
+### Stage 0: Admission Control
+- Validates resource requests before reaching scheduler
+- Enforces namespace quotas and container limits
+- Rejects invalid pods immediately
+
+### Stage 1: nodeName
+- **Bypasses all scheduler logic**
+- Directly assigns pod to specified node
+- Ignores: nodeSelector, affinity, tolerations, taints
+- Use case: Manual placement, testing
+
+### Stage 2: Filter (Hard Constraints)
+- **All** conditions must pass
+- Filtering criteria:
+  - NodeSelector
+  - NodeAffinity (required)
+  - Taints/Tolerations
+  - Resource requests
+  - PodAffinity/PodAntiAffinity (required)
+  - TopologySpreadConstraints (whenUnsatisfiable: DoNotSchedule)
+- Failure = Pod stays Pending
+
+### Stage 3: Score (Soft Constraints)
+- **Preferences** influence placement
+- Scoring criteria:
+  - NodeAffinity (preferred)
+  - PodAffinity/PodAntiAffinity (preferred)
+  - PreferNoSchedule taints
+  - TopologySpreadConstraints (whenUnsatisfiable: ScheduleAnyway)
+  - Resource balancing
+- Failure = Still schedules, but on less optimal node
+
+### Stage 4: Binding Cycle
+Five extension points:
+1. **Reserve**: Reserve resources (volumes, devices)
+2. **Permit**: Gate/approval (schedulingGates)
+3. **PreBind**: Prepare resources (volume binding)
+4. **Bind**: Update API server
+5. **PostBind**: Notifications
+
+## Comprehensive Test
+
+Deploy a pod using multiple stages simultaneously:
+
+```bash
+# Deploy cache pod first
+kubectl apply -f stage3/01-cache-pod.yaml
+
+# Deploy comprehensive test
+kubectl apply -f comprehensive-test.yaml
+
+# Check placement (should respect all constraints)
+kubectl get pod comprehensive-scheduling-test -o wide
+kubectl describe pod comprehensive-scheduling-test
+```
+
+This pod combines:
+- **Stage 2**: nodeSelector, required affinity, tolerations
+- **Stage 3**: preferred affinity, scoring
+- **Stage 4**: Normal binding
+
+## Troubleshooting
+
+### Pod stays Pending
+
+```bash
+# Check events
+kubectl describe pod <pod-name>
+
+# Look for FailedScheduling events
+kubectl get events --sort-by='.lastTimestamp' | grep FailedScheduling
+```
+
+### Common issues
+
+- **Stage 1**: nodeName to non-existent node
+- **Stage 2**: Missing toleration for tainted node
+- **Stage 2**: NodeSelector doesn't match any node
+- **Stage 2**: Insufficient resources on all nodes
+- **Stage 4**: schedulingGates blocking binding
+
+## Advanced Topics
+
+### DRA (Dynamic Resource Allocation)
+
+DRA examples are documented in `CLAUDE.md` but require:
+- DRA feature gate (enabled by default in v1.34)
+- DRA driver installed (e.g., NVIDIA GPU Operator)
+- DeviceClass and ResourceSlices configured
+
+### Custom Scheduler
+
+To test with a custom scheduler:
+
+```yaml
+spec:
+  schedulerName: my-custom-scheduler
+```
+
+## File Naming Convention
+
+- **pass**: Expected to succeed
+- **fail**: Expected to fail (Pending)
+- **block**: Temporarily blocked (SchedulingGated)
+- **lowscore**: Succeeds but with lower score
+
+## Documentation
+
+See `CLAUDE.md` for detailed technical reference including:
+- Complete scheduling flow diagrams
+- DRA integration details
+- Extension point documentation
+- Advanced configuration examples
+
+## Best Practices
+
+1. **Start with Stage 0**: Understand admission control first
+2. **Progress sequentially**: Each stage builds on previous concepts
+3. **Compare pass/fail**: Learn from both successes and failures
+4. **Use kubectl describe**: Events explain scheduling decisions
+5. **Clean up between tests**: Avoid resource conflicts
+
+## References
+
+- [Kubernetes Scheduling Framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/)
+- [Pod Scheduling Readiness](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-scheduling-readiness/)
+- [Dynamic Resource Allocation](https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/)
+
+## License
+
+Educational material for KubeCon NA 2025.
