@@ -20,7 +20,7 @@ Tools and scripts for building and configuring a Kubernetes test cluster with:
 
 ### k8s-scheduler
 Comprehensive Kubernetes scheduling demonstration covering all 5 stages:
-- **Stage 0**: Admission Control (ResourceQuota, LimitRange)
+- **Stage 0**: Admission Control (ResourceQuota, LimitRange, DRA validation)
 - **Stage 1**: nodeName (Scheduler Bypass)
 - **Stage 2**: Scheduler Filter (Hard Constraints)
 - **Stage 3**: Scheduler Score (Soft Constraints)

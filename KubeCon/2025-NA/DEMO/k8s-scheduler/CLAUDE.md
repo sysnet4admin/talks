@@ -4,7 +4,7 @@
 # ============================================================
 #
 # Scheduling Flow:
-# Stage 0: Admission Control (API Server)
+# Stage 0: Admission Control (ResourceQuota, LimitRange, DRA validation)
 # Stage 1: nodeName (Bypass Scheduler)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Scheduling Cycle (Serial Execution)
@@ -12,12 +12,12 @@
 # Stage 2: Scheduler Filter (Hard Constraints)
 # Stage 3: Scheduler Score (Soft Constraints)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Binding Cycle (Can run concurrently)
+# Binding Cycle (Can run concurrently across different Pods)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Stage 4: Binding (Reserve → Permit → PreBind → Bind → PostBind)
 #
 # DRA (Dynamic Resource Allocation) operates across stages:
-# - Stage 0: ResourceClaim validation
+# - Stage 0: ResourceClaim validation (API admission & resourceclaim-controller)
 # - Stage 2: ResourceSlice filtering for device availability
 # - Stage 3: Device allocation scoring
 # - Stage 4: ResourceClaim allocation updates (Reserve/PreBind)
@@ -365,7 +365,7 @@ spec:
 # - Stage 4: Allocation finalization (Reserve/PreBind)
 #
 # Prerequisites for DRA testing:
-# 1. DRA feature gate enabled (default in v1.34)
+# 1. DRA feature gate enabled (default in v1.34+; core API stable, some features may require feature gates)
 # 2. DRA driver installed (e.g., gpu-driver)
 # 3. DeviceClass created
 # 4. ResourceSlices published by driver
@@ -545,7 +545,7 @@ spec:
   - key: maintenance
     operator: Equal
     value: "true"
-    effect: PreferNoSchedule  # Handled in Score stage
+    effect: PreferNoSchedule  # Handled in Score stage via TaintToleration plugin
   containers:
   - name: app
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
@@ -916,7 +916,7 @@ spec:
 # DRA Testing Guide (Optional - Requires DRA Driver)
 # ============================================================
 
-# DRA is enabled by default in v1.34 but requires a DRA driver to function.
+# DRA is enabled by default in v1.34+ (core API stable; some features may require feature gates) but requires a DRA driver to function.
 # Common DRA drivers:
 # - NVIDIA GPU Operator (with DRA support)
 # - Intel Device Plugins Operator

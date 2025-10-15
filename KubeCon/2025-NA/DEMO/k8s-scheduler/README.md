@@ -6,7 +6,7 @@ Comprehensive demonstration of Kubernetes scheduling across all 5 stages, from a
 
 This demo provides hands-on examples for understanding how Kubernetes schedules pods, covering:
 
-- **Stage 0**: Admission Control (API Server)
+- **Stage 0**: Admission Control (ResourceQuota, LimitRange, DRA validation)
 - **Stage 1**: nodeName (Bypass Scheduler)
 - **Stage 2**: Scheduler Filter (Hard Constraints)
 - **Stage 3**: Scheduler Score (Soft Constraints)
@@ -241,8 +241,9 @@ kubectl delete sc late-binding-sc
 
 ### Stage 0: Admission Control
 - Validates resource requests before reaching scheduler
-- Enforces namespace quotas and container limits
-- Rejects invalid pods immediately
+- Enforces namespace quotas (ResourceQuota) and container limits (LimitRange)
+- Validates ResourceClaims for DRA (when applicable)
+- Rejects invalid pods immediately at API server level
 
 ### Stage 1: nodeName
 - **Bypasses all scheduler logic**
@@ -336,8 +337,8 @@ Dynamic Resource Allocation is a Kubernetes feature for managing specialized har
 
 **Where to learn more:**
 - DRA examples and detailed documentation are available in `CLAUDE.md`
-- DRA operates across multiple scheduling stages (Stage 2 Filter, Stage 3 Score, Stage 4 Binding)
-- Feature is enabled by default in Kubernetes v1.34+
+- DRA operates across multiple scheduling stages (Stage 0 Validation, Stage 2 Filter, Stage 3 Score, Stage 4 Binding)
+- Feature is enabled by default in Kubernetes v1.34+ (core API stable; some features may require feature gates)
 
 **If you want to test DRA:**
 1. Install a DRA-compatible driver in your cluster
