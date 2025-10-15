@@ -15,7 +15,7 @@ spec:
   - key: maintenance
     operator: Equal
     value: "true"
-    effect: PreferNoSchedule  # Handled in Score stage
+    effect: PreferNoSchedule  # Handled in Score stage via TaintToleration plugin
   containers:
   - name: app
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim

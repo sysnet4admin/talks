@@ -22,7 +22,7 @@ spec:
   - key: maintenance
     operator: Equal
     value: "true"
-    effect: PreferNoSchedule  # Stage 3: Maintenance node preference
+    effect: PreferNoSchedule  # Stage 3: Scored by TaintToleration plugin
 
   affinity:
     # Filter: Required NodeAffinity
