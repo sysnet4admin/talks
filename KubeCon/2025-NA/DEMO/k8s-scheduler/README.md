@@ -74,12 +74,12 @@ You must have a Kubernetes cluster with the following node configuration:
 
 | Node | Zone | Disk Type | Taints |
 |------|------|-----------|--------|
-| w1-k8s | zone-a | ssd | gpu:nvidia=NoSchedule |
+| w1-k8s | zone-a | ssd | - |
 | w2-k8s | zone-a | hdd | - |
 | w3-k8s | zone-b | ssd | - |
-| w4-k8s | zone-b | hdd | maintenance:true=PreferNoSchedule |
-| w5-k8s | zone-c | ssd | - |
-| w6-k8s | zone-c | hdd | - |
+| w4-k8s | zone-b | hdd | - |
+| w5-k8s | zone-c | ssd | gpu:nvidia=NoSchedule |
+| w6-k8s | zone-c | hdd | maintenance:true=PreferNoSchedule |
 
 > **Note**: Use the `k8s-cluster-builder` directory to set up this cluster automatically.
 

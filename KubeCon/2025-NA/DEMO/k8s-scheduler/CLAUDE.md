@@ -27,12 +27,12 @@
 # Prerequisites: Node Labels and Taints Setup (6-node environment)
 # ------------------------------------------------------------
 # Node configuration:
-# w1-k8s: zone-a, ssd, gpu taint
+# w1-k8s: zone-a, ssd
 # w2-k8s: zone-a, hdd
 # w3-k8s: zone-b, ssd
-# w4-k8s: zone-b, hdd, maintenance taint
-# w5-k8s: zone-c, ssd
-# w6-k8s: zone-c, hdd
+# w4-k8s: zone-b, hdd
+# w5-k8s: zone-c, ssd, gpu taint
+# w6-k8s: zone-c, hdd, maintenance taint
 
 ---
 # ============================================================
@@ -57,14 +57,14 @@ spec:
       memory: "2Gi"
       cpu: "2000m"
     min:
-      memory: "100Mi"
-      cpu: "100m"
+      memory: "4Mi"
+      cpu: "5m"
     default:
-      memory: "512Mi"
-      cpu: "500m"
+      memory: "128Mi"
+      cpu: "100m"
     defaultRequest:
-      memory: "256Mi"
-      cpu: "250m"
+      memory: "16Mi"
+      cpu: "10m"
     type: Container
 
 ---
@@ -134,14 +134,14 @@ metadata:
   labels:
     test: stage1-nodename
 spec:
-  nodeName: w1-k8s  # Direct placement on w1-k8s node
+  nodeName: w5-k8s  # Direct placement on w5-k8s node
   containers:
   - name: app
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
   # Note: The following conditions are ignored
   nodeSelector:
     disktype: ssd  # Ignored
@@ -166,8 +166,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
   nodeSelector:
     disktype: ssd  # Scheduler processes this
 
@@ -195,8 +195,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 2 Test: Filter by Required NodeAffinity
@@ -224,8 +224,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 2 Test: Filter by Taints/Tolerations
@@ -248,8 +248,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 2 Test: Filter by Resource Requests
@@ -297,8 +297,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 2 Comparison: Second web Pod (should be placed on different node)
@@ -324,8 +324,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 2 Test: TopologySpreadConstraints (Hard)
@@ -351,8 +351,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # ============================================================
@@ -421,8 +421,8 @@ spec:
 #     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
 #     resources:
 #       requests:
-#         memory: "256Mi"
-#         cpu: "250m"
+#         memory: "16Mi"
+#         cpu: "10m"
 #       claims:
 #       - name: gpu-claim
 
@@ -454,8 +454,8 @@ spec:
     image: redis:7-alpine
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 3 Test: Preferred NodeAffinity (Preference)
@@ -497,8 +497,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 3 Test: Preferred PodAffinity (Prefer same node as cache)
@@ -525,8 +525,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 3 Test: PreferNoSchedule Toleration
@@ -551,8 +551,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 3 Comparison: No PreferNoSchedule Toleration
@@ -571,8 +571,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 3 Test: TopologySpreadConstraints (Soft)
@@ -598,8 +598,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # ============================================================
@@ -638,8 +638,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 # Expected: Pod status shows "SchedulingGated" condition
 # Scheduler selects a node but doesn't proceed to Bind until gate is removed
 #
@@ -664,8 +664,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 
 ---
 # Stage 4 Test: Volume Binding with WaitForFirstConsumer
@@ -745,8 +745,8 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
     volumeMounts:
     - name: storage
       mountPath: /data
@@ -853,9 +853,9 @@ spec:
 # ============================================================
 
 # Node configuration:
-# - Zone A (w1-k8s: SSD+GPU, w2-k8s: HDD)
-# - Zone B (w3-k8s: SSD, w4-k8s: HDD+Maintenance)
-# - Zone C (w5-k8s: SSD, w6-k8s: HDD)
+# - Zone A (w1-k8s: SSD, w2-k8s: HDD)
+# - Zone B (w3-k8s: SSD, w4-k8s: HDD)
+# - Zone C (w5-k8s: SSD+GPU, w6-k8s: HDD+Maintenance)
 
 # 1. Apply namespace and resource quota/limits
 # kubectl apply -f this-file.yaml
@@ -866,23 +866,23 @@ spec:
 
 # 3. Stage 1 Test (Verify nodeName behavior)
 # kubectl get pod stage1-nodename-direct -n scheduling-demo -o wide
-# Expected: Placed on w1-k8s, NOMINATED NODE empty
+# Expected: Placed on w5-k8s, NOMINATED NODE empty
 
 # 4. Stage 2 Test (Verify Filter stage)
 # kubectl get pods -n scheduling-demo -l test=stage2-filter -o wide
 # Expected placement:
 # - stage2-nodeselector (disktype=ssd): One of w1, w3, w5
 # - stage2-required-affinity (zone a or b): One of w1, w2, w3, w4
-# - stage2-toleration-required: Only w1 (gpu taint)
+# - stage2-toleration-required: Only w5 (gpu taint)
 # - stage2-pod-antiaffinity: Each on different nodes
 
 # 5. Stage 3 Test (Verify Score stage)
 # kubectl get pods -n scheduling-demo -l test=stage3-score -o wide
 # Expected placement:
-# - stage3-preferred-nodeaffinity: w2 preferred (zone-a, w1 has gpu taint)
+# - stage3-preferred-nodeaffinity: w1 or w2 preferred (zone-a, no taints)
 # - stage3-preferred-podaffinity: Same node as cache-pod
-# - stage3-prefer-no-schedule: w4 possible (with toleration)
-# - stage3-no-prefer-toleration: w3, w6 preferred (w4 has lower score)
+# - stage3-prefer-no-schedule: w6 possible (with toleration)
+# - stage3-no-prefer-toleration: w1, w3, w4 preferred (w6 has lower score)
 
 # 6. Stage 4 Test (Verify Binding Cycle)
 # kubectl get pods -n scheduling-demo -l test=stage4-binding -o wide
