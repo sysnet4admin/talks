@@ -33,7 +33,7 @@ spec:
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 # Expected: Scheduled (soft constraint) but with lower score
 # Compares to stage3-pass-preferred-nodeaffinity which matches real zones/labels

@@ -54,8 +54,8 @@ kubectl label nodes w3-k8s disktype=ssd zone=zone-b
 kubectl label nodes w4-k8s disktype=hdd zone=zone-b
 kubectl label nodes w5-k8s disktype=ssd zone=zone-c
 kubectl label nodes w6-k8s disktype=hdd zone=zone-c
-kubectl taint nodes w1-k8s gpu=nvidia:NoSchedule
-kubectl taint nodes w4-k8s maintenance=true:PreferNoSchedule
+kubectl taint nodes w5-k8s gpu=nvidia:NoSchedule
+kubectl taint nodes w6-k8s maintenance=true:PreferNoSchedule
 EOF
 chmod +x /tmp/apply-labels.sh
 /tmp/apply-labels.sh &

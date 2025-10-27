@@ -10,13 +10,13 @@ metadata:
     component: toleration
 spec:
   nodeSelector:
-    kubernetes.io/hostname: w1-k8s  # w1-k8s has gpu:nvidia=NoSchedule taint
+    kubernetes.io/hostname: w5-k8s  # w5-k8s has gpu:nvidia=NoSchedule taint
   # No tolerations - scheduler will reject this node
   containers:
   - name: app
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
 # Expected: Pending (1 node had untolerated taint)

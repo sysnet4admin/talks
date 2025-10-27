@@ -14,5 +14,5 @@ spec:
     image: redis:7-alpine
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"

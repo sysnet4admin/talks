@@ -23,12 +23,12 @@ The cluster is configured with the following topology:
 | Node | Role | Zone | Disk Type | Taints |
 |------|------|------|-----------|--------|
 | cp-k8s | Control Plane | - | - | control-plane |
-| w1-k8s | Worker | zone-a | ssd | gpu:nvidia=NoSchedule |
+| w1-k8s | Worker | zone-a | ssd | - |
 | w2-k8s | Worker | zone-a | hdd | - |
 | w3-k8s | Worker | zone-b | ssd | - |
-| w4-k8s | Worker | zone-b | hdd | maintenance:true=PreferNoSchedule |
-| w5-k8s | Worker | zone-c | ssd | - |
-| w6-k8s | Worker | zone-c | hdd | - |
+| w4-k8s | Worker | zone-b | hdd | - |
+| w5-k8s | Worker | zone-c | ssd | gpu:nvidia=NoSchedule |
+| w6-k8s | Worker | zone-c | hdd | maintenance:true=PreferNoSchedule |
 
 ## Quick Start
 
@@ -104,10 +104,10 @@ kubectl label nodes w1-k8s disktype-
 
 ```bash
 # Add taint
-kubectl taint nodes w1-k8s gpu=nvidia:NoSchedule
+kubectl taint nodes w5-k8s gpu=nvidia:NoSchedule
 
 # Remove taint
-kubectl taint nodes w1-k8s gpu:NoSchedule-
+kubectl taint nodes w5-k8s gpu:NoSchedule-
 ```
 
 ## Troubleshooting

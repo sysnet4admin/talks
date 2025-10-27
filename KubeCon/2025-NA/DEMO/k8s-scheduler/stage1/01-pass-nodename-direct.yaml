@@ -9,14 +9,14 @@ metadata:
   labels:
     test: stage1-nodename
 spec:
-  nodeName: w1-k8s  # Direct placement on w1-k8s node
+  nodeName: w5-k8s  # Direct placement on w5-k8s node
   containers:
   - name: app
     image: quay.io/nginx/nginx-unprivileged:1.27.5-alpine-slim
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "250m"
+        memory: "16Mi"
+        cpu: "10m"
   # Note: The following conditions are ignored
   nodeSelector:
     disktype: ssd  # Ignored

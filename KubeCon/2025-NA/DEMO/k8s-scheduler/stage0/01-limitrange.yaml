@@ -13,12 +13,12 @@ spec:
       memory: "2Gi"
       cpu: "2000m"
     min:
-      memory: "100Mi"
-      cpu: "100m"
+      memory: "4Mi"
+      cpu: "5m"
     default:
-      memory: "512Mi"
-      cpu: "500m"
+      memory: "128Mi"
+      cpu: "100m"
     defaultRequest:
-      memory: "256Mi"
-      cpu: "250m"
+      memory: "16Mi"
+      cpu: "10m"
     type: Container
