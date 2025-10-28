@@ -5,6 +5,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: comprehensive-scheduling-test
+  namespace: scheduling-demo
   labels:
     test: comprehensive
     app: full-example
