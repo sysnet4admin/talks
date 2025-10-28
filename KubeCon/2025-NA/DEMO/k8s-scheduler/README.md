@@ -22,8 +22,6 @@ This demo provides hands-on examples for understanding how Kubernetes schedules 
 k8s-scheduler/
 ├── CLAUDE.md                           # Detailed technical reference
 ├── comprehensive-complex-scheduling.yaml   # Complex real-world scheduling example
-├── comprehensive-bypass-stage3.yaml    # Stage 2 makes Stage 3 meaningless
-├── comprehensive-stage3-itself.yaml    # Stage 3 actually matters
 ├── stage0/                             # Admission Control demos
 │   ├── 00-namespace.yaml
 │   ├── 01-limitrange.yaml
@@ -48,7 +46,8 @@ k8s-scheduler/
 │   ├── 09-fail-required-affinity.yaml
 │   ├── 10-fail-toleration.yaml
 │   ├── 11-fail-resource-requests.yaml
-│   └── 12-fail-topology-spread.yaml
+│   ├── 12-fail-topology-spread.yaml
+│   └── 99.comprehensive-bypass-stage3.yaml  # Comprehensive: Stage 2 dominates
 ├── stage3/                      # Score (soft constraints) demos
 │   ├── 01-cache-pod.yaml
 │   ├── 02-pass-preferred-nodeaffinity.yaml
@@ -58,7 +57,8 @@ k8s-scheduler/
 │   ├── 06-pass-topology-spread-soft.yaml
 │   ├── 07-lowscore-preferred-nodeaffinity.yaml
 │   ├── 08-lowscore-preferred-podaffinity.yaml
-│   └── 09-lowscore-topology-spread-soft.yaml
+│   ├── 09-lowscore-topology-spread-soft.yaml
+│   └── 99.comprehensive-stage3-itself.yaml  # Comprehensive: Stage 3 decides
 └── stage4/                      # Binding cycle demos
     ├── 01-block-scheduling-gate.yaml
     ├── 02-pass-no-scheduling-gate.yaml
@@ -153,7 +153,7 @@ kubectl delete pods -l 'test in (stage1-nodename,stage1-scheduler,stage1-bypass,
 All conditions must be satisfied:
 
 ```bash
-# Deploy all stage2 tests
+# Deploy all stage2 tests (including comprehensive example)
 kubectl apply -f stage2/
 
 # Check successful placements
@@ -165,8 +165,14 @@ kubectl get pods -l test=stage2-fail -o wide
 # Describe a failed pod to see why
 kubectl describe pod stage2-fail-nodeselector
 
+# Check comprehensive example (Stage 2 makes Stage 3 meaningless)
+kubectl get pod comprehensive-bypass-stage3 -n scheduling-demo -o wide
+# Expected: w5-k8s (only candidate after Stage 2 Filter)
+# Note: Stage 3 preferences (zone-a, HDD) are ignored because w5-k8s is the only option
+
 # Cleanup
 kubectl delete pods -l 'test in (stage2-filter,stage2-fail)'
+kubectl delete pod comprehensive-bypass-stage3 -n scheduling-demo
 ```
 
 ### Stage 3: Scheduler Score (Soft Constraints)
@@ -196,8 +202,15 @@ kubectl get pods -l 'test in (stage3-score,stage3-lowscore)' -o wide
 kubectl get pod stage3-pass-preferred-podaffinity -o wide
 kubectl get pod stage3-lowscore-preferred-podaffinity -o wide
 
+# Check comprehensive example (Stage 3 actually matters)
+kubectl get pod comprehensive-stage3-itself -n scheduling-demo -o wide
+# Expected: w1-k8s (highest score: 180 points)
+# Scoring: w1(180) > w2(130) > w3(80) > w4(30)
+# Note: Stage 2 left 4 candidates, Stage 3 picked the best
+
 # Cleanup
 kubectl delete pods -l 'test in (stage3-score,stage3-lowscore)'
+kubectl delete pod comprehensive-stage3-itself -n scheduling-demo
 kubectl delete pod cache-pod
 ```
 
@@ -316,13 +329,13 @@ This pod combines:
 
 **Key lesson**: Real-world pods often use multiple Stage 2 and Stage 3 constraints together. Stage 2 narrows candidates (w1, w3), then Stage 3 picks the best (w1).
 
-### 2. Stage 2 Makes Stage 3 Meaningless (comprehensive-bypass-stage3.yaml)
+### 2. Stage 2 Makes Stage 3 Meaningless (stage2/99.comprehensive-bypass-stage3.yaml)
 
 Demonstrates when hard constraints leave only one candidate, making soft constraints irrelevant:
 
 ```bash
-# Deploy the test
-kubectl apply -f comprehensive-bypass-stage3.yaml
+# Deploy the test (from stage2 directory)
+kubectl apply -f stage2/99.comprehensive-bypass-stage3.yaml
 
 # Check placement
 kubectl get pod comprehensive-bypass-stage3 -n scheduling-demo -o wide
@@ -341,13 +354,15 @@ kubectl delete pod comprehensive-bypass-stage3 -n scheduling-demo
 
 **Key lesson**: Strong Stage 2 filters can make Stage 3 preferences meaningless.
 
-### 3. Stage 3 Actually Matters (comprehensive-stage3-itself.yaml)
+**Location**: This example is in `stage2/` because it demonstrates the **power of Stage 2 filters** - when Stage 2 is too restrictive, Stage 3 becomes irrelevant.
+
+### 3. Stage 3 Actually Matters (stage3/99.comprehensive-stage3-itself.yaml)
 
 Demonstrates when soft constraints determine the final placement:
 
 ```bash
-# Deploy the test
-kubectl apply -f comprehensive-stage3-itself.yaml
+# Deploy the test (from stage3 directory)
+kubectl apply -f stage3/99.comprehensive-stage3-itself.yaml
 
 # Check placement
 kubectl get pod comprehensive-stage3-itself -n scheduling-demo -o wide
@@ -367,13 +382,20 @@ kubectl delete pod comprehensive-stage3-itself -n scheduling-demo
 
 **Key lesson**: When Stage 2 leaves multiple candidates, Stage 3 picks the best match.
 
+**Location**: This example is in `stage3/` because it demonstrates the **importance of Stage 3 scoring** - when Stage 2 allows multiple nodes, Stage 3 decides the winner.
+
 ### Comparison Summary
 
-| Test | Stage 2 Candidates | Stage 3 Impact | Final Node | Scenario |
-|------|-------------------|----------------|------------|----------|
-| comprehensive-complex-scheduling.yaml | w1, w3 (multiple filters) | **Picks the best** | w1-k8s | Real-world: Both stages matter |
-| comprehensive-bypass-stage3.yaml | Only w5-k8s | **No impact** | w5-k8s (forced) | Stage 2 too strong |
-| comprehensive-stage3-itself.yaml | w1, w2, w3, w4 | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
+| Test | Location | Stage 2 Candidates | Stage 3 Impact | Final Node | Scenario |
+|------|----------|-------------------|----------------|------------|----------|
+| comprehensive-complex-scheduling.yaml | Root | w1, w3 (multiple filters) | **Picks the best** | w1-k8s | Real-world: Both stages matter |
+| 99.comprehensive-bypass-stage3.yaml | stage2/ | Only w5-k8s | **No impact** | w5-k8s (forced) | Stage 2 too strong |
+| 99.comprehensive-stage3-itself.yaml | stage3/ | w1, w2, w3, w4 | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
+
+**Learning Path**:
+1. Start with individual stage examples (stage0/ → stage1/ → stage2/ → stage3/ → stage4/)
+2. Each stage includes a comprehensive example at the end (99.xxx.yaml)
+3. Finish with the root comprehensive-complex-scheduling.yaml for the complete picture
 
 ## Troubleshooting
 
