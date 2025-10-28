@@ -20,9 +20,11 @@ This demo provides hands-on examples for understanding how Kubernetes schedules 
 
 ```
 k8s-scheduler/
-├── CLAUDE.md                    # Detailed technical reference
-├── comprehensive-test.yaml      # Combined example with all stages
-├── stage0/                      # Admission Control demos
+├── CLAUDE.md                           # Detailed technical reference
+├── comprehensive-complex-scheduling.yaml   # Complex real-world scheduling example
+├── comprehensive-bypass-stage3.yaml    # Stage 2 makes Stage 3 meaningless
+├── comprehensive-stage3-itself.yaml    # Stage 3 actually matters
+├── stage0/                             # Admission Control demos
 │   ├── 00-namespace.yaml
 │   ├── 01-limitrange.yaml
 │   ├── 02-resourcequota.yaml
@@ -280,26 +282,98 @@ Five extension points:
 4. **Bind**: Update API server
 5. **PostBind**: Notifications
 
-## Comprehensive Test
+## Comprehensive Tests
 
-Deploy a pod using multiple stages simultaneously:
+Three comprehensive examples demonstrate how scheduling stages interact:
+
+### 1. Complex Real-World Scheduling (comprehensive-complex-scheduling.yaml)
+
+Demonstrates a realistic production scenario with multiple constraints working together:
 
 ```bash
-# Deploy cache pod first
+# Deploy cache pod first (needed for PodAffinity)
 kubectl apply -f stage3/01-cache-pod.yaml
 
-# Deploy comprehensive test
-kubectl apply -f comprehensive-test.yaml
+# Deploy complex scheduling test
+kubectl apply -f comprehensive-complex-scheduling.yaml
 
-# Check placement (should respect all constraints)
-kubectl get pod comprehensive-scheduling-test -o wide
-kubectl describe pod comprehensive-scheduling-test
+# Check placement
+kubectl get pod comprehensive-scheduling-test -n scheduling-demo -o wide
+# Expected: w1-k8s (passes Stage 2 filters, highest Stage 3 score)
+
+# Review how all constraints work together
+kubectl describe pod comprehensive-scheduling-test -n scheduling-demo
+
+# Cleanup
+kubectl delete pod comprehensive-scheduling-test -n scheduling-demo
+kubectl delete pod cache-pod -n scheduling-demo
 ```
 
 This pod combines:
-- **Stage 2**: nodeSelector, required affinity, tolerations
-- **Stage 3**: preferred affinity, scoring
+- **Stage 2 (Hard)**: nodeSelector (ssd), required NodeAffinity (zone-a/b), NoSchedule toleration (gpu), PodAntiAffinity, TopologySpread, Resource requests
+- **Stage 3 (Soft)**: preferred NodeAffinity (zone-a), preferred PodAffinity (cache), PreferNoSchedule toleration (maintenance)
 - **Stage 4**: Normal binding
+
+**Key lesson**: Real-world pods often use multiple Stage 2 and Stage 3 constraints together. Stage 2 narrows candidates (w1, w3), then Stage 3 picks the best (w1).
+
+### 2. Stage 2 Makes Stage 3 Meaningless (comprehensive-bypass-stage3.yaml)
+
+Demonstrates when hard constraints leave only one candidate, making soft constraints irrelevant:
+
+```bash
+# Deploy the test
+kubectl apply -f comprehensive-bypass-stage3.yaml
+
+# Check placement
+kubectl get pod comprehensive-bypass-stage3 -n scheduling-demo -o wide
+# Expected: w5-k8s (zone-c, SSD)
+
+# Review the contradiction
+kubectl describe pod comprehensive-bypass-stage3 -n scheduling-demo
+# Note: Stage 3 prefers zone-a + HDD
+# But: w5-k8s is zone-c + SSD (opposite!)
+# Why: Stage 2 Filter left only w5-k8s as a candidate
+#      Stage 3 preferences had ZERO impact
+
+# Cleanup
+kubectl delete pod comprehensive-bypass-stage3 -n scheduling-demo
+```
+
+**Key lesson**: Strong Stage 2 filters can make Stage 3 preferences meaningless.
+
+### 3. Stage 3 Actually Matters (comprehensive-stage3-itself.yaml)
+
+Demonstrates when soft constraints determine the final placement:
+
+```bash
+# Deploy the test
+kubectl apply -f comprehensive-stage3-itself.yaml
+
+# Check placement
+kubectl get pod comprehensive-stage3-itself -n scheduling-demo -o wide
+# Expected: w1-k8s (highest score: 180 points)
+
+# Review the scoring
+kubectl describe pod comprehensive-stage3-itself -n scheduling-demo
+# Scoring breakdown:
+# - w1-k8s: zone-a (100) + SSD (80) = 180 points ← WINNER!
+# - w2-k8s: zone-a (100) + HDD (30) = 130 points
+# - w3-k8s: zone-b (0) + SSD (80) = 80 points
+# - w4-k8s: zone-b (0) + HDD (30) = 30 points
+
+# Cleanup
+kubectl delete pod comprehensive-stage3-itself -n scheduling-demo
+```
+
+**Key lesson**: When Stage 2 leaves multiple candidates, Stage 3 picks the best match.
+
+### Comparison Summary
+
+| Test | Stage 2 Candidates | Stage 3 Impact | Final Node | Scenario |
+|------|-------------------|----------------|------------|----------|
+| comprehensive-complex-scheduling.yaml | w1, w3 (multiple filters) | **Picks the best** | w1-k8s | Real-world: Both stages matter |
+| comprehensive-bypass-stage3.yaml | Only w5-k8s | **No impact** | w5-k8s (forced) | Stage 2 too strong |
+| comprehensive-stage3-itself.yaml | w1, w2, w3, w4 | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
 
 ## Troubleshooting
 
