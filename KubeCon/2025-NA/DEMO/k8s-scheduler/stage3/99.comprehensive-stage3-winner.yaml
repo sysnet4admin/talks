@@ -13,10 +13,10 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: comprehensive-stage3-itself
+  name: comprehensive-stage3-winner
   labels:
     test: comprehensive
-    scenario: stage3-matters
+    scenario: stage3-winner
 spec:
   # ====== Stage 2 Filter (Hard Constraints) ======
 
@@ -91,8 +91,8 @@ spec:
 #
 # Comparison with comprehensive-bypass-stage3.yaml:
 # - bypass-stage3: Only 1 candidate after Stage 2 → Stage 3 is meaningless
-# - stage3-itself: 4 candidates after Stage 2 → Stage 3 picks the best
+# - stage3-winner: 4 candidates after Stage 2 → Stage 3 picks the best
 #
 # Test command:
-# kubectl get pod comprehensive-stage3-itself -o wide
-# kubectl describe pod comprehensive-stage3-itself | grep -A10 "Events:"
+# kubectl get pod comprehensive-stage3-winner -o wide
+# kubectl describe pod comprehensive-stage3-winner | grep -A10 "Events:"
