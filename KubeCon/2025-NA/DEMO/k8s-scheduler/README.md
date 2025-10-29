@@ -58,7 +58,8 @@ k8s-scheduler/
 │   ├── 07-lowscore-preferred-nodeaffinity.yaml
 │   ├── 08-lowscore-preferred-podaffinity.yaml
 │   ├── 09-lowscore-topology-spread-soft.yaml
-│   └── 99.comprehensive-stage3-itself.yaml  # Comprehensive: Stage 3 decides
+│   ├── 99.comprehensive-stage3-winner.yaml  # Comprehensive: Stage 3 decides
+│   └── taint-node.sh                        # Interactive taint management script
 └── stage4/                      # Binding cycle demos
     ├── 01-block-scheduling-gate.yaml
     ├── 02-pass-no-scheduling-gate.yaml
@@ -203,14 +204,20 @@ kubectl get pod stage3-pass-preferred-podaffinity -o wide
 kubectl get pod stage3-lowscore-preferred-podaffinity -o wide
 
 # Check comprehensive example (Stage 3 actually matters)
-kubectl get pod comprehensive-stage3-itself -n scheduling-demo -o wide
+kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
 # Expected: w1-k8s (highest score: 180 points)
 # Scoring: w1(180) > w2(130) > w3(80) > w4(30)
 # Note: Stage 2 left 4 candidates, Stage 3 picked the best
 
+# Interactive taint management (change Stage 3 winner)
+cd stage3
+./taint-node.sh
+# Use fzf to select a node and apply taints
+# Observe how taints affect Stage 3 scoring and winner selection
+
 # Cleanup
 kubectl delete pods -l 'test in (stage3-score,stage3-lowscore)'
-kubectl delete pod comprehensive-stage3-itself -n scheduling-demo
+kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
 kubectl delete pod cache-pod
 ```
 
@@ -390,33 +397,43 @@ kubectl delete pod comprehensive-bypass-stage3 -n scheduling-demo
 
 **Location**: This example is in `stage2/` because it demonstrates the **power of Stage 2 filters** - when Stage 2 is too restrictive, Stage 3 becomes irrelevant.
 
-### 3. Stage 3 Actually Matters (stage3/99.comprehensive-stage3-itself.yaml)
+### 3. Stage 3 Actually Matters (stage3/99.comprehensive-stage3-winner.yaml)
 
 Demonstrates when soft constraints determine the final placement:
 
 ```bash
 # Deploy the test (from stage3 directory)
-kubectl apply -f stage3/99.comprehensive-stage3-itself.yaml
+kubectl apply -f stage3/99.comprehensive-stage3-winner.yaml
 
 # Check placement
-kubectl get pod comprehensive-stage3-itself -n scheduling-demo -o wide
+kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
 # Expected: w1-k8s (highest score: 180 points)
 
 # Review the scoring
-kubectl describe pod comprehensive-stage3-itself -n scheduling-demo
+kubectl describe pod comprehensive-stage3-winner -n scheduling-demo
 # Scoring breakdown:
 # - w1-k8s: zone-a (100) + SSD (80) = 180 points ← WINNER!
 # - w2-k8s: zone-a (100) + HDD (30) = 130 points
 # - w3-k8s: zone-b (0) + SSD (80) = 80 points
 # - w4-k8s: zone-b (0) + HDD (30) = 30 points
 
+# Change the winner by applying taints
+cd stage3
+./taint-node.sh
+# Select w1-k8s and apply NoSchedule taint
+# Redeploy: kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+#           kubectl apply -f 99.comprehensive-stage3-winner.yaml
+# New winner: w2-k8s (130 points, w1 filtered out)
+
 # Cleanup
-kubectl delete pod comprehensive-stage3-itself -n scheduling-demo
+kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
 ```
 
 **Key lesson**: When Stage 2 leaves multiple candidates, Stage 3 picks the best match.
 
 **Location**: This example is in `stage3/` because it demonstrates the **importance of Stage 3 scoring** - when Stage 2 allows multiple nodes, Stage 3 decides the winner.
+
+**Interactive Tool**: Use `taint-node.sh` to dynamically change node taints and observe how it affects the Stage 3 winner selection.
 
 ### Comparison Summary
 
@@ -424,7 +441,7 @@ kubectl delete pod comprehensive-stage3-itself -n scheduling-demo
 |------|----------|-------------------|----------------|------------|----------|
 | comprehensive-complex-scheduling.yaml | Root | w1, w3 (multiple filters) | **Picks the best** | w1-k8s | Real-world: Both stages matter |
 | 99.comprehensive-bypass-stage3.yaml | stage2/ | Only w5-k8s | **No impact** | w5-k8s (forced) | Stage 2 too strong |
-| 99.comprehensive-stage3-itself.yaml | stage3/ | w1, w2, w3, w4 | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
+| 99.comprehensive-stage3-winner.yaml | stage3/ | w1, w2, w3, w4 | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
 
 **Learning Path**:
 1. Start with individual stage examples (stage0/ → stage1/ → stage2/ → stage3/ → stage4/)
