@@ -281,9 +281,17 @@ To test:
 ## Cleanup
 
 ```bash
-# Remove demo taints
+# Remove demo taints from w1-k8s
 ./taint-node.sh
-# Select each tainted node and choose "Remove"
+# Select w1-k8s and choose "3) Remove - Remove all demo taints from node"
+
+# Remove demo taints from w2-k8s
+./taint-node.sh
+# Select w2-k8s and choose "3) Remove - Remove all demo taints from node"
+
+# Or remove manually
+kubectl taint nodes w1-k8s demo- 2>/dev/null || true
+kubectl taint nodes w2-k8s demo- 2>/dev/null || true
 
 # Delete test pod
 kubectl delete pod comprehensive-stage3-winner
