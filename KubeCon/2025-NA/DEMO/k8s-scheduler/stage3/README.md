@@ -1,16 +1,48 @@
-# Stage 3: Interactive Taint Demonstration
+# Stage 3: Scoring-Based Winner Selection
 
-This directory demonstrates how taints affect Stage 3 scoring and winner selection through three scenarios.
+This directory demonstrates how **Stage 3 scoring determines the winner** when multiple nodes pass Stage 2 filtering.
 
 ## Overview
 
-Stage 3 is where the Kubernetes scheduler evaluates **soft constraints** (preferences) to select the best node. This demo shows how taints dynamically change the Stage 3 winner based on scoring.
+Stage 3 is where the Kubernetes scheduler evaluates **soft constraints** (preferences) and assigns scores to candidate nodes. The node with the **highest score wins**.
+
+This demo shows how scoring drives placement decisions through three scenarios:
+- **Scenario 1**: All 4 nodes available → Highest score (180) wins
+- **Scenario 2**: Top node eliminated → Next highest score (130) wins
+- **Scenario 3**: Top 2 nodes eliminated → Third highest score (80) wins
+
+We use `taint-node.sh` as a tool to eliminate nodes and observe how scoring selects the next best candidate.
+
+## Understanding Stage 3 Scoring
+
+### How Scoring Works
+
+The scheduler assigns points to each node based on how well it matches the preferences:
+
+```yaml
+preferredDuringSchedulingIgnoredDuringExecution:
+- weight: 100  # Strong preference
+  preference:
+    matchExpressions:
+    - key: zone
+      operator: In
+      values: [zone-a]
+
+- weight: 80   # Medium preference
+  preference:
+    matchExpressions:
+    - key: disktype
+      operator: In
+      values: [ssd]
+```
+
+Each preference has a **weight** (importance level). Nodes matching the preference get those points. The node with the **highest total score wins**.
 
 ## Three Test Scenarios
 
-### Scenario 1: Baseline (No Taints)
+### Scenario 1: All Nodes Available (Scoring Decides)
 
-**Objective**: Establish baseline without using taint-node.sh
+**Objective**: See how Stage 3 scoring picks the best node when all candidates are available
 
 ```bash
 # Deploy the comprehensive test
@@ -33,13 +65,16 @@ kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
 | w3-k8s | zone-b | ssd | 0 | 80 | 80 | |
 | w4-k8s | zone-b | hdd | 0 | 30 | 30 | |
 
-**Key Point**: w1-k8s wins because it matches both preferences (zone-a + ssd)
+**Key Point**:
+- **Scoring drives the decision**: w1-k8s has the highest score (180)
+- Matches both preferences: zone-a (100 points) + ssd (80 points)
+- Stage 3 scoring selected w1-k8s as the optimal placement
 
 ---
 
-### Scenario 2: Taint w1-k8s (Winner Changes)
+### Scenario 2: Top Scorer Eliminated (Next Best Score Wins)
 
-**Objective**: Use taint-node.sh to taint w1-k8s and observe winner change to w2-k8s
+**Objective**: Show that when the highest-scoring node is unavailable, Stage 3 scoring picks the next best
 
 ```bash
 # Apply taint to w1-k8s using interactive script
@@ -71,13 +106,17 @@ kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
 | w3-k8s | Candidate | 80 | |
 | w4-k8s | Candidate | 30 | |
 
-**Key Point**: w1-k8s is eliminated in Stage 2 Filter. w2-k8s becomes the winner (highest score among remaining candidates)
+**Key Point**:
+- **Scoring still drives the decision**: w2-k8s has the highest score among remaining nodes (130)
+- w1-k8s (180 points) is unavailable → eliminated in Stage 2
+- Stage 3 scoring picks the next highest: w2-k8s (130 points)
+- Still matches one preference: zone-a (100 points) + hdd (30 points)
 
 ---
 
-### Scenario 3: Taint w2-k8s Also (Winner Changes Again)
+### Scenario 3: Top 2 Scorers Eliminated (Third Best Score Wins)
 
-**Objective**: Add taint to w2-k8s to show how winner moves to w3-k8s based on scores
+**Objective**: Show that scoring continues to drive decisions even when only lower-scoring nodes remain
 
 ```bash
 # Keep w1-k8s tainted, now taint w2-k8s as well
@@ -109,7 +148,12 @@ kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
 | w3-k8s | Candidate | 80 | ✅ NEW WINNER |
 | w4-k8s | Candidate | 30 | |
 
-**Key Point**: Both w1-k8s and w2-k8s are eliminated. w3-k8s wins despite lower score (only ssd matches, zone-b doesn't)
+**Key Point**:
+- **Scoring always drives the decision**: w3-k8s has the highest score among remaining nodes (80)
+- w1-k8s (180 points) and w2-k8s (130 points) are unavailable
+- Stage 3 scoring picks the highest remaining: w3-k8s (80 points)
+- Partial match is enough: ssd (80 points), zone-b doesn't match (0 points)
+- Demonstrates that Stage 3 **always selects based on relative scores**, not absolute values
 
 ---
 
@@ -207,13 +251,32 @@ To test:
   kubectl get pod comprehensive-stage3-winner -o wide
 ```
 
-## Key Takeaways
+## Key Takeaways: Stage 3 Scoring Determines Winners
 
-1. **Scenario 1**: No taints → w1-k8s wins (180 points: zone-a + ssd)
-2. **Scenario 2**: w1-k8s tainted → w2-k8s wins (130 points: zone-a + hdd, highest remaining)
-3. **Scenario 3**: Both w1-k8s and w2-k8s tainted → w3-k8s wins (80 points: zone-b + ssd, only matches ssd)
-4. **Stage 3 scoring drives winner selection** when Stage 2 leaves multiple candidates
-5. **NoSchedule taints filter nodes in Stage 2**, forcing scheduler to pick next best score
+### The Core Principle
+**Stage 3 scoring always picks the highest-scoring available node**
+
+### What We Demonstrated
+
+1. **Scoring is relative, not absolute**
+   - Scenario 1: 180 points wins (out of 180, 130, 80, 30)
+   - Scenario 2: 130 points wins (out of 130, 80, 30)
+   - Scenario 3: 80 points wins (out of 80, 30)
+   - The winner is always the **highest score among available candidates**
+
+2. **Stage 3 scoring drives all placement decisions**
+   - Not about meeting thresholds
+   - About **relative ranking** of available nodes
+   - Preferences create scoring differences that determine winners
+
+3. **When high-scoring nodes are unavailable, the next best wins**
+   - Winner progression by score: 180 → 130 → 80
+   - Each step shows scoring selecting the optimal available node
+
+4. **Role of taint-node.sh**
+   - Tool to eliminate nodes (simulating capacity, failures, maintenance)
+   - Demonstrates that scoring adapts to available candidates
+   - Shows Stage 3's consistent logic regardless of candidate pool
 
 ## Cleanup
 
