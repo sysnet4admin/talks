@@ -15,7 +15,7 @@ Stage 3 is where the Kubernetes scheduler evaluates **soft constraints** (prefer
 kubectl apply -f 99.comprehensive-stage3-winner.yaml
 
 # Check placement
-kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+kubectl get pod comprehensive-stage3-winner -o wide
 # Expected: w1-k8s (highest score: 180 points)
 ```
 
@@ -40,11 +40,11 @@ kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
 # 3. Script shows effect and test commands
 
 # Redeploy the pod
-kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+kubectl delete pod comprehensive-stage3-winner
 kubectl apply -f 99.comprehensive-stage3-winner.yaml
 
 # Check new placement
-kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+kubectl get pod comprehensive-stage3-winner -o wide
 # Expected: w2-k8s (NEW WINNER - w1 filtered out in Stage 2)
 ```
 
@@ -68,11 +68,11 @@ kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
 # 2. Choose "2) PreferNoSchedule"
 # 3. Redeploy
 
-kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+kubectl delete pod comprehensive-stage3-winner
 kubectl apply -f 99.comprehensive-stage3-winner.yaml
 
 # Check placement
-kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+kubectl get pod comprehensive-stage3-winner -o wide
 # Expected: Likely w2-k8s (w1's score is lowered by taint penalty)
 ```
 
@@ -96,11 +96,11 @@ kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
 # 2. Choose "3) Remove"
 # 3. Redeploy
 
-kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+kubectl delete pod comprehensive-stage3-winner
 kubectl apply -f 99.comprehensive-stage3-winner.yaml
 
 # Check placement
-kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+kubectl get pod comprehensive-stage3-winner -o wide
 # Expected: w1-k8s (back to original winner)
 ```
 
@@ -170,9 +170,9 @@ Effect:
 - Scheduler will pick the next highest scoring node from remaining candidates
 
 To test:
-  kubectl delete pod comprehensive-stage3-winner -n scheduling-demo 2>/dev/null || true
+  kubectl delete pod comprehensive-stage3-winner 2>/dev/null || true
   kubectl apply -f 99.comprehensive-stage3-winner.yaml
-  kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+  kubectl get pod comprehensive-stage3-winner -o wide
 ```
 
 ## Key Takeaways
@@ -190,5 +190,5 @@ To test:
 # Select each tainted node and choose "Remove"
 
 # Delete test pod
-kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+kubectl delete pod comprehensive-stage3-winner
 ```
