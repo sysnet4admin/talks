@@ -861,15 +861,15 @@ spec:
 # kubectl apply -f this-file.yaml
 
 # 2. Stage 0 Test (Verify LimitRange violation)
-# kubectl get pod stage0-fail-limitrange -n scheduling-demo
+# kubectl get pod stage0-fail-limitrange -n stage0-demo
 # Expected: Error (Failed to create due to LimitRange violation)
 
 # 3. Stage 1 Test (Verify nodeName behavior)
-# kubectl get pod stage1-nodename-direct -n scheduling-demo -o wide
-# Expected: Placed on w5-k8s, NOMINATED NODE empty
+# kubectl get pod stage1-nodename-direct -o wide
+# Expected: Placed on w4-k8s, NOMINATED NODE empty
 
 # 4. Stage 2 Test (Verify Filter stage)
-# kubectl get pods -n scheduling-demo -l test=stage2-filter -o wide
+# kubectl get pods -l test=stage2-filter -o wide
 # Expected placement:
 # - stage2-nodeselector (disktype=ssd): One of w1, w3, w5
 # - stage2-required-affinity (zone a or b): One of w1, w2, w3, w4
@@ -877,7 +877,7 @@ spec:
 # - stage2-pod-antiaffinity: Each on different nodes
 
 # 5. Stage 3 Test (Verify Score stage)
-# kubectl get pods -n scheduling-demo -l test=stage3-score -o wide
+# kubectl get pods -l test=stage3-score -o wide
 # Expected placement:
 # - stage3-preferred-nodeaffinity: w1 or w2 preferred (zone-a, no taints)
 # - stage3-preferred-podaffinity: Same node as cache-pod
@@ -885,7 +885,7 @@ spec:
 # - stage3-no-prefer-toleration: w1, w3, w4 preferred (w6 has lower score)
 
 # 6. Stage 4 Test (Verify Binding Cycle)
-# kubectl get pods -n scheduling-demo -l test=stage4-binding -o wide
+# kubectl get pods -l test=stage4-binding -o wide
 # Expected behavior:
 # - stage4-scheduling-gate-blocked: Status shows "SchedulingGated"
 #   Node selected but not bound until gate is removed
@@ -893,24 +893,30 @@ spec:
 # - stage4-volume-late-binding: Pod on w1-k8s (only node with PV and SSD)
 #
 # Check schedulingGates status:
-# kubectl get pod stage4-scheduling-gate-blocked -n scheduling-demo -o jsonpath='{.spec.schedulingGates}'
+# kubectl get pod stage4-scheduling-gate-blocked -o jsonpath='{.spec.schedulingGates}'
 #
 # Check PVC binding status:
-# kubectl get pvc demo-pvc -n scheduling-demo
+# kubectl get pvc demo-pvc
 # Expected: Bound after Pod is scheduled
 #
 # Remove schedulingGate to complete binding:
-# kubectl patch pod stage4-scheduling-gate-blocked -n scheduling-demo \
+# kubectl patch pod stage4-scheduling-gate-blocked \
 #   --type=json -p='[{"op": "remove", "path": "/spec/schedulingGates"}]'
 
 # 7. Check detailed scheduling events
-# kubectl describe pod <pod-name> -n scheduling-demo
+# kubectl describe pod <pod-name>
 
 # 8. Check Pod distribution by zone
-# kubectl get pods -n scheduling-demo -o wide | grep -E "NAME|w1-k8s|w2-k8s|w3-k8s|w4-k8s|w5-k8s|w6-k8s"
+# kubectl get pods -o wide | grep -E "NAME|w1-k8s|w2-k8s|w3-k8s|w4-k8s|w5-k8s|w6-k8s"
 
 # 9. Cleanup
-# kubectl delete namespace scheduling-demo
+# kubectl delete namespace stage0-demo
+# kubectl delete pods -l test=stage1-nodename
+# kubectl delete pods -l test=stage1-scheduler
+# kubectl delete pods -l test=stage2-filter
+# kubectl delete pods -l test=stage3-score
+# kubectl delete pods -l test=stage4-binding
+# kubectl delete pods -l test=comprehensive
 
 # ============================================================
 # DRA Testing Guide (Optional - Requires DRA Driver)

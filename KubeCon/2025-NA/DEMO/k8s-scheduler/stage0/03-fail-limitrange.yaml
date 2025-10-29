@@ -5,6 +5,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: stage0-fail-limitrange
+  namespace: stage0-demo
   labels:
     test: stage0-fail
 spec:
