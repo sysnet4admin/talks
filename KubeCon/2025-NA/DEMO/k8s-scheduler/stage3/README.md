@@ -1,237 +1,194 @@
-# Stage 3: Scheduler Score (Soft Constraints)
+# Stage 3: Interactive Taint Demonstration
 
-Stage 3 is where the Kubernetes scheduler evaluates **soft constraints** (preferences) to select the best node from the candidates that passed Stage 2 filtering.
+This directory demonstrates how taints affect Stage 3 scoring and winner selection.
 
 ## Overview
 
-Unlike Stage 2 (hard constraints that can block scheduling), Stage 3 preferences influence placement but **never prevent a pod from being scheduled**. The scheduler assigns scores to each candidate node and selects the one with the highest score.
+Stage 3 is where the Kubernetes scheduler evaluates **soft constraints** (preferences) to select the best node. This demo shows how applying taints can change the Stage 3 winner dynamically.
 
-## Key Concepts
+## Test Scenario: Change the Winner
 
-### Scoring Plugins
-
-The scheduler uses multiple plugins to calculate node scores:
-
-1. **NodeAffinity**: Preferred node labels
-2. **PodAffinity/PodAntiAffinity**: Preferred pod co-location/separation
-3. **TaintToleration**: PreferNoSchedule taint penalties
-4. **TopologySpreadConstraints**: Soft topology distribution (whenUnsatisfiable: ScheduleAnyway)
-5. **NodeResourcesFit**: Resource balancing
-6. **ImageLocality**: Prefer nodes with cached images
-
-Each plugin assigns a score (0-100), and the final score is a weighted sum of all plugin scores.
-
-## Files in This Directory
-
-### Individual Tests
-
-- `01-cache-pod.yaml` - Cache pod for PodAffinity tests
-- `02-pass-preferred-nodeaffinity.yaml` - High score with preferred node affinity
-- `03-pass-preferred-podaffinity.yaml` - High score with preferred pod affinity
-- `04-pass-prefer-no-schedule.yaml` - No penalty with PreferNoSchedule toleration
-- `05-pass-no-prefer-toleration.yaml` - Lower score without PreferNoSchedule toleration
-- `06-pass-topology-spread-soft.yaml` - Soft topology spread (schedules even if unbalanced)
-- `07-lowscore-preferred-nodeaffinity.yaml` - Low score with non-matching preferences
-- `08-lowscore-preferred-podaffinity.yaml` - Low score with non-matching pod affinity
-- `09-lowscore-topology-spread-soft.yaml` - Lower score due to topology imbalance
-
-### Comprehensive Test
-
-- `99.comprehensive-stage3-winner.yaml` - Demonstrates Stage 3 as the deciding factor
-  - Stage 2 leaves 4 candidates (w1, w2, w3, w4)
-  - Stage 3 picks the winner based on highest score
-  - Expected: w1-k8s (180 points)
-
-### Interactive Tool
-
-- `taint-node.sh` - Interactive script to manage node taints
-  - fzf-based node selection with taint display
-  - Apply NoSchedule or PreferNoSchedule taints
-  - Remove taints
-  - Observe how taints change Stage 3 winner
-
-## Quick Start
-
-### 1. Deploy Cache Pod (for PodAffinity tests)
+### Initial State (No Taints)
 
 ```bash
-kubectl apply -f 01-cache-pod.yaml
-```
-
-### 2. Deploy High Score Tests
-
-These pods match the preferences and get high scores:
-
-```bash
-kubectl apply -f 02-pass-preferred-nodeaffinity.yaml
-kubectl apply -f 03-pass-preferred-podaffinity.yaml
-kubectl apply -f 04-pass-prefer-no-schedule.yaml
-kubectl apply -f 05-pass-no-prefer-toleration.yaml
-kubectl apply -f 06-pass-topology-spread-soft.yaml
-```
-
-### 3. Deploy Low Score Tests
-
-These pods don't match preferences but still schedule (just on less optimal nodes):
-
-```bash
-kubectl apply -f 07-lowscore-preferred-nodeaffinity.yaml
-kubectl apply -f 08-lowscore-preferred-podaffinity.yaml
-kubectl apply -f 09-lowscore-topology-spread-soft.yaml
-```
-
-### 4. Verify Placement
-
-```bash
-# Check all pods - all should be Running
-kubectl get pods -o wide
-
-# Compare high vs low score placements
-kubectl get pod stage3-pass-preferred-nodeaffinity -o wide
-kubectl get pod stage3-lowscore-preferred-nodeaffinity -o wide
-```
-
-### 5. Test Comprehensive Example
-
-```bash
-# Deploy comprehensive test
+# Deploy the comprehensive test
 kubectl apply -f 99.comprehensive-stage3-winner.yaml
 
 # Check placement
 kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
-# Expected: w1-k8s (180 points)
-
-# Review scoring breakdown in events
-kubectl describe pod comprehensive-stage3-winner -n scheduling-demo
+# Expected: w1-k8s (highest score: 180 points)
 ```
 
-## Interactive Demonstration: Change the Winner
+**Scoring without taints:**
 
-Use `taint-node.sh` to dynamically change which node wins in Stage 3:
+| Node | Zone | Disk | Score | Result |
+|------|------|------|-------|--------|
+| w1-k8s | zone-a | ssd | 180 | ✅ WINNER |
+| w2-k8s | zone-a | hdd | 130 | |
+| w3-k8s | zone-b | ssd | 80 | |
+| w4-k8s | zone-b | hdd | 30 | |
+
+### Scenario 1: Apply NoSchedule Taint to w1-k8s
 
 ```bash
-# Run the interactive script
+# Run interactive script
 ./taint-node.sh
 
-# Example flow:
-# 1. Select w1-k8s (current winner)
-# 2. Apply NoSchedule taint
-# 3. Redeploy pod:
+# Steps in the script:
+# 1. Select w1-k8s (using fzf)
+# 2. Choose "1) NoSchedule"
+# 3. Script shows effect and test commands
+
+# Redeploy the pod
 kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
 kubectl apply -f 99.comprehensive-stage3-winner.yaml
 
-# 4. New winner: w2-k8s (w1 filtered out in Stage 2)
+# Check new placement
 kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+# Expected: w2-k8s (NEW WINNER - w1 filtered out in Stage 2)
 ```
 
-### Script Features
+**Scoring after NoSchedule taint on w1-k8s:**
 
-- **fzf integration**: Interactive node selection with taints display
-- **Current state**: Shows existing taints before applying changes
-- **Three operations**:
-  - NoSchedule: Filters out node in Stage 2 (hard constraint)
-  - PreferNoSchedule: Lowers node score in Stage 3 (soft constraint)
-  - Remove: Removes demo taints
-- **Test commands**: Provides commands to verify the changes
-
-## Scoring Example
-
-For `99.comprehensive-stage3-winner.yaml` without taints:
-
-| Node | Zone | Disk | Zone Score (weight 100) | Disk Score (weight 80) | Total | Result |
-|------|------|------|------------------------|------------------------|-------|--------|
-| w1-k8s | zone-a | ssd | 100 | 80 | **180** | ✅ WINNER |
-| w2-k8s | zone-a | hdd | 100 | 30 | 130 | |
-| w3-k8s | zone-b | ssd | 0 | 80 | 80 | |
-| w4-k8s | zone-b | hdd | 0 | 30 | 30 | |
-
-### After Applying NoSchedule Taint to w1-k8s
-
-| Node | Status | Total Score | Result |
-|------|--------|-------------|--------|
-| w1-k8s | FILTERED OUT (Stage 2) | N/A | ❌ |
+| Node | Status | Score | Result |
+|------|--------|-------|--------|
+| w1-k8s | FILTERED OUT | N/A | ❌ |
 | w2-k8s | Candidate | 130 | ✅ NEW WINNER |
 | w3-k8s | Candidate | 80 | |
 | w4-k8s | Candidate | 30 | |
 
-### After Applying PreferNoSchedule Taint to w1-k8s
+### Scenario 2: Switch to PreferNoSchedule Taint
 
-| Node | Zone | Disk | Base Score | Taint Penalty | Final | Result |
-|------|------|------|------------|---------------|-------|--------|
-| w1-k8s | zone-a | ssd | 180 | -penalty | ~170 | (depends on implementation) |
-| w2-k8s | zone-a | hdd | 130 | 0 | 130 | ✅ LIKELY WINNER |
-| w3-k8s | zone-b | ssd | 80 | 0 | 80 | |
-| w4-k8s | zone-b | hdd | 30 | 0 | 30 | |
+```bash
+# Run script again
+./taint-node.sh
 
-## Key Differences: Pass vs Lowscore
+# Steps:
+# 1. Select w1-k8s
+# 2. Choose "2) PreferNoSchedule"
+# 3. Redeploy
 
-### Pass Tests (High Score)
-- Preferences **match** node characteristics
-- Higher scores → Better placement
-- More likely to get optimal nodes
+kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+kubectl apply -f 99.comprehensive-stage3-winner.yaml
 
-### Lowscore Tests (Low Score)
-- Preferences **don't match** node characteristics
-- Lower scores → Less optimal placement
-- Still schedules (unlike Stage 2 failures)
-- May land on less desirable nodes
+# Check placement
+kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+# Expected: Likely w2-k8s (w1's score is lowered by taint penalty)
+```
 
-## Stage 2 vs Stage 3 Comparison
+**Scoring after PreferNoSchedule taint on w1-k8s:**
 
-| Aspect | Stage 2 (Filter) | Stage 3 (Score) |
-|--------|------------------|-----------------|
-| Constraint Type | Hard (required) | Soft (preferred) |
-| Failure Impact | Pod stays Pending | Pod still schedules |
-| Example | requiredDuringScheduling | preferredDuringScheduling |
-| Taint Effect | NoSchedule | PreferNoSchedule |
-| TopologySpread | DoNotSchedule | ScheduleAnyway |
+| Node | Base Score | Taint Penalty | Final Score | Result |
+|------|------------|---------------|-------------|--------|
+| w1-k8s | 180 | -penalty | ~170 or less | |
+| w2-k8s | 130 | 0 | 130 | ✅ LIKELY WINNER |
+| w3-k8s | 80 | 0 | 80 | |
+| w4-k8s | 30 | 0 | 30 | |
 
-## When Stage 3 Matters
+### Scenario 3: Restore Original Winner
 
-Stage 3 is only meaningful when **Stage 2 leaves multiple candidates**:
+```bash
+# Remove taints
+./taint-node.sh
 
-- ✅ **Stage 3 matters**: `99.comprehensive-stage3-winner.yaml`
-  - Stage 2 leaves 4 candidates (w1, w2, w3, w4)
-  - Stage 3 picks the best (w1-k8s with 180 points)
+# Steps:
+# 1. Select w1-k8s
+# 2. Choose "3) Remove"
+# 3. Redeploy
 
-- ❌ **Stage 3 irrelevant**: `../stage2/99.comprehensive-bypass-stage3.yaml`
-  - Stage 2 leaves only 1 candidate (w5-k8s)
-  - Stage 3 preferences have no impact (no choice to make)
+kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+kubectl apply -f 99.comprehensive-stage3-winner.yaml
 
-## Troubleshooting
+# Check placement
+kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+# Expected: w1-k8s (back to original winner)
+```
 
-### All pods schedule successfully
-This is expected! Stage 3 never blocks scheduling. If you see Pending pods, check Stage 2 constraints.
+## Using taint-node.sh
 
-### Pods landing on unexpected nodes
-Check scoring preferences - they influence but don't guarantee placement. Use `kubectl describe pod` to see scheduling events and understand the decision.
+### Features
 
-### PreferNoSchedule seems ignored
-PreferNoSchedule only lowers score, doesn't prevent scheduling. If the tainted node still has the highest score after penalty, it will be selected.
+- **Interactive node selection** with fzf (shows current taints and labels)
+- **Three taint operations**:
+  - `NoSchedule`: Hard constraint (filters out node in Stage 2)
+  - `PreferNoSchedule`: Soft constraint (lowers node score in Stage 3)
+  - `Remove`: Removes demo taints
+- **Current state display**: Shows node status and taints before operation
+- **Test commands**: Provides copy-paste commands to verify changes
 
-## Best Practices
+### Usage
 
-1. **Use Stage 3 for optimization**: Prefer certain nodes but allow flexibility
-2. **Combine with Stage 2**: Use hard constraints to eliminate unsuitable nodes first
-3. **Test with taints**: Use `taint-node.sh` to understand scoring dynamics
-4. **Compare pass/lowscore**: Learn how preferences affect placement
-5. **Monitor scoring**: Use `kubectl describe pod` to see scheduler decisions
+```bash
+# Run the script
+./taint-node.sh
 
-## References
+# Interactive flow:
+# 1. Select node (arrow keys to navigate, Enter to select)
+# 2. Review current taints
+# 3. Select operation
+# 4. Script applies taint and shows test commands
+# 5. Follow test commands to observe the effect
+```
 
-- [Kubernetes Scheduling Framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/)
-- [Node Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity)
-- [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+### Example Output
+
+```
+============================================================
+Taint worker nodes to change Stage 3 winner
+============================================================
+
+Select a node to taint (use arrow keys, type to filter, Enter to select):
+
+w1-k8s               taints=[no-taints]                  zone=zone-a   disk=ssd
+w2-k8s               taints=[no-taints]                  zone=zone-a   disk=hdd
+w3-k8s               taints=[no-taints]                  zone=zone-b   disk=ssd
+w4-k8s               taints=[no-taints]                  zone=zone-b   disk=hdd
+
+============================================================
+Taint w1-k8s to change Stage 3 winner
+============================================================
+
+Current node w1-k8s status:
+NAME     STATUS   ROLES    AGE   VERSION
+w1-k8s   Ready    <none>   15d   v1.34.1
+
+Current taints on w1-k8s:
+  No taints
+
+Select taint operation:
+
+1) NoSchedule - Hard constraint (filters out node in Stage 2)
+2) PreferNoSchedule - Soft constraint (lowers node score in Stage 3)
+3) Remove - Remove all demo taints from node
+4) Cancel - Exit without changes
+
+✓ NoSchedule taint applied
+
+Effect:
+- w1-k8s will be FILTERED OUT in Stage 2 (hard constraint)
+- comprehensive-stage3-winner Pod cannot be scheduled to w1-k8s
+- Scheduler will pick the next highest scoring node from remaining candidates
+
+To test:
+  kubectl delete pod comprehensive-stage3-winner -n scheduling-demo 2>/dev/null || true
+  kubectl apply -f 99.comprehensive-stage3-winner.yaml
+  kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+```
+
+## Key Takeaways
+
+1. **NoSchedule (Stage 2)**: Completely blocks pod placement → Winner changes from w1 to w2
+2. **PreferNoSchedule (Stage 3)**: Lowers node score but doesn't block → May change winner depending on penalty
+3. **Stage 3 only matters when Stage 2 leaves multiple candidates**
+4. **Interactive testing helps understand scheduling decisions**
 
 ## Cleanup
 
 ```bash
-# Delete all stage3 pods
-kubectl delete pods -l 'test in (stage3-score,stage3-lowscore)'
-kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
-kubectl delete pod cache-pod -n scheduling-demo
-
-# Remove any demo taints
+# Remove demo taints
 ./taint-node.sh
-# Select each node and choose "Remove"
+# Select each tainted node and choose "Remove"
+
+# Delete test pod
+kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
 ```
