@@ -252,6 +252,40 @@ kubectl delete pv demo-pv-w1
 kubectl delete sc late-binding-sc
 ```
 
+## Standard YAML Field Ordering
+
+For consistency and readability, all Pod specs in this demo follow this standard field order:
+
+```yaml
+spec:
+  # 1. Scheduling-related fields (before containers)
+  nodeName:                    # Stage 1: Bypass scheduler
+  nodeSelector:                # Stage 2: Filter by node labels
+  affinity:                    # Stage 2: Filter (required) / Stage 3: Score (preferred)
+  tolerations:                 # Stage 2: Filter (allow tainted nodes)
+  topologySpreadConstraints:   # Stage 2: Filter / Stage 3: Score
+  schedulingGates:             # Stage 4: Block binding until removed
+
+  # 2. Container definition
+  containers:
+
+  # 3. Runtime configuration (after containers)
+  volumes:
+  securityContext:
+  imagePullSecrets:
+  dnsPolicy:
+```
+
+**Why this order matters:**
+- **Logical flow**: Scheduling decisions → Container definition → Runtime setup
+- **Readability**: Related scheduling fields are grouped together
+- **Stage clarity**: Shows which stage handles each field
+
+**Key ordering rule:**
+- `affinity` comes **before** `tolerations` (both are Stage 2 filters, but affinity is more complex)
+- All scheduling fields come **before** `containers`
+- Runtime fields (volumes, etc.) come **after** `containers`
+
 ## Key Concepts
 
 ### Stage 0: Admission Control
