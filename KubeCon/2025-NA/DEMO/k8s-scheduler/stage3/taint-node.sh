@@ -120,7 +120,7 @@ if [ "$USE_FZF" = true ]; then
     CHOICE=$(printf "%s\n" \
         "1) NoSchedule - Hard constraint (filters out node in Stage 2)" \
         "2) PreferNoSchedule - Soft constraint (lowers node score in Stage 3)" \
-        "3) Remove - Remove all demo taints from node" \
+        "3) Remove - Remove demo taints (key=demo) from node" \
         "4) Cancel - Exit without changes" \
         | fzf --height=10 --layout=reverse --border --header="Taint operation" --prompt="Action> ")
 
@@ -136,7 +136,7 @@ else
     echo "Choose taint option:"
     echo "1) NoSchedule (hard constraint - filters out $NODE in Stage 2)"
     echo "2) PreferNoSchedule (soft constraint - lowers $NODE score in Stage 3)"
-    echo "3) Remove all demo taints from $NODE"
+    echo "3) Remove demo taints (key=demo) from $NODE"
     echo "4) Cancel"
     echo ""
 
@@ -180,10 +180,10 @@ case $choice in
         ;;
     3)
         echo ""
-        echo "Removing all taints from $NODE..."
+        echo "Removing demo taints from $NODE..."
         kubectl taint nodes "$NODE" demo- 2>/dev/null || echo "No 'demo' taint to remove"
         echo ""
-        echo "✓ Taints removed"
+        echo "✓ Demo taints removed"
         echo ""
         echo "Effect:"
         echo "- $NODE back to full scoring without taint penalty"
