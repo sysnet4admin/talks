@@ -26,8 +26,8 @@ echo "alias kgpw='kubectl get pods -o wide'"   >> ~/.bashrc
 echo "alias kg-po-ip-stat-no='kubectl get pods -o=custom-columns=\
 NAME:.metadata.name,IP:.status.podIP,STATUS:.status.phase,NODE:.spec.nodeName'" \
                                      >> ~/.bashrc 
-echo "alias kg-node-labels='kubectl get nodes -L zone,disktype'"   >> ~/.bashrc
-echo "alias kg-node-taints='kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints'"   >> ~/.bashrc
+echo "alias kg-nodes-labels='kubectl get nodes -L zone,disktype'"   >> ~/.bashrc
+echo "alias kg-nodes-taints='kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints'"   >> ~/.bashrc
 
 echo 'complete -F __start_kubectl k' >> ~/.bashrc
 
