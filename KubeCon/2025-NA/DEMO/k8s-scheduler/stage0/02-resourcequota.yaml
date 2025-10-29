@@ -6,6 +6,7 @@ apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: demo-quota
+  namespace: stage0-demo
 spec:
   hard:
     requests.cpu: "10"
