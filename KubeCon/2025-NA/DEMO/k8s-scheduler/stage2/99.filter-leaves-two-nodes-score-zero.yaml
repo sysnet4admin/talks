@@ -1,25 +1,24 @@
 # ============================================================
-# Comprehensive Test: Stage 2 Leaves Two Nodes, Stage 3 Score Meaningless
+# Comprehensive Test: Stage 2 Filter vs Stage 3 Score Misalignment
 # ============================================================
-# This demonstrates how Stage 2 (Filter) can leave multiple nodes,
-# but Stage 3 (Score) preferences are still meaningless when none of
-# the remaining nodes match the scoring criteria.
+# This demonstrates how Stage 2 (Filter) and Stage 3 (Score) preferences
+# can be misaligned, making Stage 3 scoring meaningless.
 #
 # Expected behavior:
-# - Stage 2 Filter narrows down to 2 nodes: w1-k8s and w3-k8s
-# - Stage 3 Score preferences (zone-c, HDD) don't match either node
-# - Both nodes get 0 points from Stage 3 scoring
-# - Final selection determined by other scoring plugins or node name order
-# - Stage 3 preferences are effectively meaningless for the decision
+# - Stage 2 Filter narrows down to 2 nodes: w3-k8s and w5-k8s
+# - Stage 3 Score preferences (zone-a) prefer w1-k8s the most
+# - But w1-k8s was already filtered out by Stage 2 (zone-b or zone-c only)
+# - Remaining nodes (w3, w5) both get 0 points from Stage 3
+# - Stage 3 preferences are effectively meaningless (Filter already decided)
 # ============================================================
 
 apiVersion: v1
 kind: Pod
 metadata:
-  name: comprehensive-bypass-stage3-two-nodes
+  name: filter-leaves-two-nodes-score-zero
   labels:
     test: comprehensive
-    scenario: bypass-stage3-two-nodes
+    scenario: bypass-stage3
 spec:
   # ====== Stage 2 Filter (Hard Constraints) ======
 
@@ -27,28 +26,30 @@ spec:
   nodeSelector:
     disktype: ssd
 
-  # Filter 2: REQUIRED - Only zone-a or zone-b nodes
+  # Filter 2: REQUIRED - Only zone-b or zone-c nodes
   affinity:
     nodeAffinity:
-      # This constraint leaves w1-k8s (zone-a, SSD) and w3-k8s (zone-b, SSD)
+      # This constraint leaves w3-k8s (zone-b, SSD) and w5-k8s (zone-c, SSD)
+      # KEY POINT: w1-k8s (zone-a, SSD) is filtered out here!
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
         - matchExpressions:
           - key: zone
             operator: In
             values:
-            - zone-a  # w1-k8s, w2-k8s
             - zone-b  # w3-k8s, w4-k8s
+            - zone-c  # w5-k8s, w6-k8s
           - key: disktype
             operator: In
             values:
-            - ssd  # Combined: only w1-k8s and w3-k8s remain!
+            - ssd  # Combined: only w3-k8s and w5-k8s remain!
 
-      # Result after Stage 2: w1-k8s (zone-a, SSD) and w3-k8s (zone-b, SSD)
+      # Result after Stage 2: w3-k8s (zone-b, SSD) and w5-k8s (zone-c, SSD)
+      # Note: w1-k8s (zone-a, SSD) is FILTERED OUT despite being the best for Stage 3!
 
       # ====== Stage 3 Score (Soft Constraints) - MEANINGLESS! ======
 
-      # Prefer zone-c nodes (w5, w6)
+      # Prefer zone-a nodes (w1, w2)
       preferredDuringSchedulingIgnoredDuringExecution:
       - weight: 100
         preference:
@@ -56,16 +57,8 @@ spec:
           - key: zone
             operator: In
             values:
-            - zone-c  # ← w1 is zone-a, w3 is zone-b → Both get 0 points
-
-      # Prefer HDD nodes (w2, w4, w6)
-      - weight: 50
-        preference:
-          matchExpressions:
-          - key: disktype
-            operator: In
-            values:
-            - hdd  # ← Both w1 and w3 are SSD → Both get 0 points
+            - zone-a  # ← w1 would score 100 points, but it's already filtered out!
+                      # ← w3 is zone-b (0 points), w5 is zone-c (0 points)
 
   containers:
   - name: app
@@ -78,29 +71,44 @@ spec:
 # ============================================================
 # Expected Result:
 # ============================================================
-# Node: w1-k8s or w3-k8s (both are equally viable)
+# Node: w3-k8s or w5-k8s (both score 0 points)
 #
-# Why Stage 3 is meaningless:
-# 1. Stage 2 Filter left 2 candidates: w1-k8s (zone-a, SSD) and w3-k8s (zone-b, SSD)
-# 2. Stage 3 Score preferences wanted zone-c + HDD
-# 3. Neither w1 nor w3 match zone-c (both get 0 points from weight: 100)
-# 4. Neither w1 nor w3 match HDD (both get 0 points from weight: 50)
-# 5. Both nodes have identical Stage 3 scores: 0 points
-# 6. Final decision made by:
-#    - Other scoring plugins (NodeResourcesFit, ImageLocality, etc.)
-#    - If still tied, node name order (w1-k8s comes before w3-k8s)
-# 7. Stage 3 preferences had ZERO impact on the decision
+# Why Stage 3 is meaningless (Filter vs Score misalignment):
+# 1. Stage 2 Filter requirements:
+#    - disktype=ssd → w1, w3, w5
+#    - zone=zone-b OR zone-c → w3, w4, w5, w6
+#    - Combined: w3-k8s (zone-b, SSD) and w5-k8s (zone-c, SSD)
+#    - w1-k8s (zone-a, SSD) is FILTERED OUT
 #
-# Comparison with 99.comprehensive-bypass-stage3.yaml:
-# - 99: Stage 2 leaves 1 node → Stage 3 cannot change outcome
-# - 98: Stage 2 leaves 2 nodes → Stage 3 scores both as 0 → Still meaningless
+# 2. Stage 3 Score preferences:
+#    - Prefer zone-a (weight: 100)
+#    - w1-k8s would score 100 points, but it's already filtered out!
+#    - w3-k8s: zone-b (0 points)
+#    - w5-k8s: zone-c (0 points)
+#
+# 3. Misalignment:
+#    - Filter wants: zone-b or zone-c
+#    - Score wants: zone-a
+#    - Result: Best scoring node (w1) was already eliminated by Filter
+#
+# 4. Final decision:
+#    - w3 and w5 both score 0 points
+#    - Other scoring plugins or node name order decides
+#    - Stage 3 preferences had ZERO impact (best node already filtered out)
+#
+# Comparison with other scenarios:
+# - 97: 0 nodes left → Stage 3 never evaluated (Unschedulable)
+# - 98: 1 node left → Stage 3 not evaluated (no choice)
+# - 99: 2 nodes left, but Score's favorite (w1) already filtered out → Meaningless
 #
 # Test commands:
-# kubectl apply -f 98.comprehensive-bypass-stage3-two-nodes.yaml
-# kubectl get pod comprehensive-bypass-stage3-two-nodes -o wide
-# kubectl describe pod comprehensive-bypass-stage3-two-nodes | grep -A10 "Events:"
+# kubectl apply -f 99.filter-leaves-two-nodes-score-zero.yaml
+# kubectl get pod filter-leaves-two-nodes-score-zero -o wide
+# # Expected: w3-k8s or w5-k8s (NOT w1-k8s, despite w1 being Stage 3's favorite)
 #
-# Expected scheduling decision:
-# Most likely w1-k8s due to:
-# - Identical Stage 3 scores (0:0)
-# - Other scoring factors or alphabetical node name ordering
+# kubectl describe pod filter-leaves-two-nodes-score-zero | grep -A10 "Events:"
+#
+# Key lesson:
+# Stage 2 Filter decisions dominate over Stage 3 Score preferences.
+# Even if Stage 3 strongly prefers a node (w1 = 100 points),
+# if Stage 2 already filtered it out, Stage 3 preferences become meaningless.
