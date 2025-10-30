@@ -25,6 +25,13 @@ spec:
   nodeSelector:
     disktype: ssd
 
+  # Filter 2: Must tolerate gpu taint (only w5)
+  tolerations:
+  - key: gpu
+    operator: Equal
+    value: nvidia
+    effect: NoSchedule  # Allows scheduling on w5-k8s
+
   # Filter 3: REQUIRED - Only zone-c nodes (forces w5)
   affinity:
     nodeAffinity:
@@ -40,6 +47,8 @@ spec:
             operator: In
             values:
             - ssd  # Combined with zone-c, only w5 remains!
+
+      # Result after Stage 2: Only w5-k8s remains!
 
       # ====== Stage 3 Score (Soft Constraints) - MEANINGLESS! ======
 
@@ -61,15 +70,6 @@ spec:
             operator: In
             values:
             - hdd  # ← w5 is SSD, so this gets 0 points too!
-
-  # Filter 2: Must tolerate gpu taint (only w5)
-  tolerations:
-  - key: gpu
-    operator: Equal
-    value: nvidia
-    effect: NoSchedule  # Allows scheduling on w5-k8s
-
-  # Result after Stage 2: Only w5-k8s remains!
 
   containers:
   - name: app
