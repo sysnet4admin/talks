@@ -60,7 +60,7 @@ k8s-scheduler/
 │   ├── 07-lowscore-preferred-nodeaffinity.yaml
 │   ├── 08-lowscore-preferred-podaffinity.yaml
 │   ├── 09-lowscore-topology-spread-soft.yaml
-│   ├── 99.comprehensive-stage3-winner.yaml  # Comprehensive: Stage 3 decides
+│   ├── 99.score-picks-winner.yaml                          # Stage 3 scoring decides
 │   └── taint-node.sh                        # Interactive taint management script
 └── stage4/                      # Binding cycle demos
     ├── 01-block-scheduling-gate.yaml
@@ -223,7 +223,7 @@ kubectl get pod stage3-pass-preferred-podaffinity -o wide
 kubectl get pod stage3-lowscore-preferred-podaffinity -o wide
 
 # Check comprehensive example (Stage 3 actually matters)
-kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+kubectl get pod score-picks-winner -o wide
 # Expected: w1-k8s (highest score: 180 points)
 # Scoring: w1(180) > w2(130) > w3(80) > w4(30)
 # Note: Stage 2 left 4 candidates, Stage 3 picked the best
@@ -236,7 +236,7 @@ cd stage3
 
 # Cleanup
 kubectl delete pods -l 'test in (stage3-score,stage3-lowscore)'
-kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+kubectl delete pod score-picks-winner
 kubectl delete pod cache-pod
 ```
 
@@ -474,20 +474,20 @@ kubectl delete pod filter-leaves-two-nodes-score-zero
 
 **Location**: All three examples are in `stage2/` because they demonstrate the **power of Stage 2 filters** - when Stage 2 is too restrictive or misaligned with Stage 3, Stage 3 becomes irrelevant.
 
-### 3. Stage 3 Actually Matters (stage3/99.comprehensive-stage3-winner.yaml)
+### 3. Stage 3 Actually Matters (stage3/99.score-picks-winner.yaml)
 
 Demonstrates when soft constraints determine the final placement:
 
 ```bash
 # Deploy the test (from stage3 directory)
-kubectl apply -f stage3/99.comprehensive-stage3-winner.yaml
+kubectl apply -f stage3/99.score-picks-winner.yaml
 
 # Check placement
-kubectl get pod comprehensive-stage3-winner -n scheduling-demo -o wide
+kubectl get pod score-picks-winner -o wide
 # Expected: w1-k8s (highest score: 180 points)
 
 # Review the scoring
-kubectl describe pod comprehensive-stage3-winner -n scheduling-demo
+kubectl describe pod score-picks-winner
 # Scoring breakdown:
 # - w1-k8s: zone-a (100) + SSD (80) = 180 points ← WINNER!
 # - w2-k8s: zone-a (100) + HDD (30) = 130 points
@@ -498,12 +498,12 @@ kubectl describe pod comprehensive-stage3-winner -n scheduling-demo
 cd stage3
 ./taint-node.sh
 # Select w1-k8s and apply NoSchedule taint
-# Redeploy: kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
-#           kubectl apply -f 99.comprehensive-stage3-winner.yaml
+# Redeploy: kubectl delete pod score-picks-winner
+#           kubectl apply -f 99.score-picks-winner.yaml
 # New winner: w2-k8s (130 points, w1 filtered out)
 
 # Cleanup
-kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
+kubectl delete pod score-picks-winner
 ```
 
 **Key lesson**: When Stage 2 leaves multiple candidates, Stage 3 picks the best match.
@@ -520,7 +520,7 @@ kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
 | 97.filter-leaves-zero-nodes-unschedulable.yaml | stage2/ | None (0 nodes) | N/A | **Never evaluated** | None (Pending) | Stage 2 too restrictive: Fail |
 | 98.filter-leaves-one-node-score-bypassed.yaml | stage2/ | Only w5-k8s | N/A | **Not evaluated** | w5-k8s (forced) | Stage 2 too strong: No choice |
 | 99.filter-leaves-two-nodes-score-zero.yaml | stage2/ | w3, w5 (zone-b/c) | **w1 (filtered out!)** | **Meaningless** | w3-k8s or w5-k8s | Filter excludes Score's favorite |
-| 99.comprehensive-stage3-winner.yaml | stage3/ | w1, w2, w3, w4 | w1 (available) | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
+| 99.score-picks-winner.yaml | stage3/ | w1, w2, w3, w4 | w1 (available) | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
 
 **Learning Path**:
 1. Start with individual stage examples (stage0/ → stage1/ → stage2/ → stage3/ → stage4/)

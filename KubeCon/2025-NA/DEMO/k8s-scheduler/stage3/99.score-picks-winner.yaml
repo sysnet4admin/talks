@@ -1,5 +1,5 @@
 # ============================================================
-# Stage 3 Interactive Demonstration: 99.comprehensive-stage3-winner.yaml
+# Stage 3 Interactive Demonstration: 99.score-picks-winner.yaml
 # ============================================================
 # NOTE: This file is used with taint-node.sh for interactive demonstration.
 #       For other Stage 3 tests, see individual files (01-09.yaml).
@@ -24,10 +24,10 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: comprehensive-stage3-winner
+  name: score-picks-winner
   labels:
     test: comprehensive
-    scenario: stage3-winner
+    scenario: score-picks-winner
 spec:
   # ====== Stage 2 Filter (Hard Constraints) ======
 
@@ -88,7 +88,7 @@ spec:
 #
 # Scenario 1: Baseline (No Taints)
 # ---------------------------------
-# Command: kubectl apply -f 99.comprehensive-stage3-winner.yaml
+# Command: kubectl apply -f 99.score-picks-winner.yaml
 # Expected: w1-k8s (180 points)
 # Scoring:
 # - w1-k8s: zone-a (100) + SSD (80) = 180 points ← WINNER!
@@ -99,8 +99,8 @@ spec:
 # Scenario 2: Taint w1-k8s (Use taint-node.sh)
 # ---------------------------------------------
 # Command: ./taint-node.sh → Select w1-k8s → NoSchedule
-# Then:    kubectl delete pod comprehensive-stage3-winner
-#          kubectl apply -f 99.comprehensive-stage3-winner.yaml
+# Then:    kubectl delete pod score-picks-winner
+#          kubectl apply -f 99.score-picks-winner.yaml
 # Expected: w2-k8s (130 points, w1 filtered out)
 # Scoring:
 # - w1-k8s: FILTERED OUT (Stage 2)
@@ -111,8 +111,8 @@ spec:
 # Scenario 3: Taint w2-k8s Also (Use taint-node.sh)
 # --------------------------------------------------
 # Command: ./taint-node.sh → Select w2-k8s → NoSchedule
-# Then:    kubectl delete pod comprehensive-stage3-winner
-#          kubectl apply -f 99.comprehensive-stage3-winner.yaml
+# Then:    kubectl delete pod score-picks-winner
+#          kubectl apply -f 99.score-picks-winner.yaml
 # Expected: w3-k8s (80 points, w1 and w2 filtered out)
 # Scoring:
 # - w1-k8s: FILTERED OUT (Stage 2)

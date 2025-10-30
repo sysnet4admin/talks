@@ -14,7 +14,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: comprehensive-bypass-stage3
+  name: filter-leaves-one-node-score-bypassed
   labels:
     test: comprehensive
     scenario: bypass-stage3
@@ -92,5 +92,5 @@ spec:
 # 5. Stage 3 preferences had ZERO impact on the decision
 #
 # Test command:
-# kubectl get pod comprehensive-bypass-stage3 -o wide
-# kubectl describe pod comprehensive-bypass-stage3 | grep -A10 "Events:"
+# kubectl get pod filter-leaves-one-node-score-bypassed -o wide
+# kubectl describe pod filter-leaves-one-node-score-bypassed | grep -A10 "Events:"

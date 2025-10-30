@@ -46,14 +46,14 @@ Each preference has a **weight** (importance level). Nodes matching the preferen
 
 ```bash
 # Deploy the comprehensive test
-kubectl apply -f 99.comprehensive-stage3-winner.yaml
+kubectl apply -f 99.score-picks-winner.yaml
 
 # Check placement
-kubectl get pod comprehensive-stage3-winner -o wide
+kubectl get pod score-picks-winner -o wide
 # Expected: w1-k8s (highest score: 180 points)
 
 # Verify scheduling decision
-kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
+kubectl describe pod score-picks-winner | grep -A5 Events
 ```
 
 **Scoring without taints:**
@@ -86,15 +86,15 @@ kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
 # 3. Observe the effect message
 
 # Redeploy the pod
-kubectl delete pod comprehensive-stage3-winner
-kubectl apply -f 99.comprehensive-stage3-winner.yaml
+kubectl delete pod score-picks-winner
+kubectl apply -f 99.score-picks-winner.yaml
 
 # Check new placement
-kubectl get pod comprehensive-stage3-winner -o wide
+kubectl get pod score-picks-winner -o wide
 # Expected: w2-k8s (NEW WINNER - w1 filtered out in Stage 2)
 
 # Verify w1 is filtered out
-kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
+kubectl describe pod score-picks-winner | grep -A5 Events
 ```
 
 **Scoring after NoSchedule taint on w1-k8s:**
@@ -128,15 +128,15 @@ kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
 # 3. Observe the effect message
 
 # Redeploy the pod
-kubectl delete pod comprehensive-stage3-winner
-kubectl apply -f 99.comprehensive-stage3-winner.yaml
+kubectl delete pod score-picks-winner
+kubectl apply -f 99.score-picks-winner.yaml
 
 # Check new placement
-kubectl get pod comprehensive-stage3-winner -o wide
+kubectl get pod score-picks-winner -o wide
 # Expected: w3-k8s (NEW WINNER - w1 and w2 filtered out)
 
 # Verify w1 and w2 are filtered out
-kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
+kubectl describe pod score-picks-winner | grep -A5 Events
 ```
 
 **Scoring after NoSchedule taints on both w1-k8s and w2-k8s:**
@@ -174,9 +174,9 @@ kubectl describe pod comprehensive-stage3-winner | grep -A5 Events
 # 2. Choose "3) Remove - Remove all demo taints from node"
 
 # Redeploy and verify w1-k8s is back as winner
-kubectl delete pod comprehensive-stage3-winner
-kubectl apply -f 99.comprehensive-stage3-winner.yaml
-kubectl get pod comprehensive-stage3-winner -o wide
+kubectl delete pod score-picks-winner
+kubectl apply -f 99.score-picks-winner.yaml
+kubectl get pod score-picks-winner -o wide
 # Expected: w1-k8s (back to original winner)
 ```
 
@@ -242,13 +242,13 @@ Select taint operation:
 
 Effect:
 - w1-k8s will be FILTERED OUT in Stage 2 (hard constraint)
-- comprehensive-stage3-winner Pod cannot be scheduled to w1-k8s
+- score-picks-winner Pod cannot be scheduled to w1-k8s
 - Scheduler will pick the next highest scoring node from remaining candidates
 
 To test:
-  kubectl delete pod comprehensive-stage3-winner 2>/dev/null || true
-  kubectl apply -f 99.comprehensive-stage3-winner.yaml
-  kubectl get pod comprehensive-stage3-winner -o wide
+  kubectl delete pod score-picks-winner 2>/dev/null || true
+  kubectl apply -f 99.score-picks-winner.yaml
+  kubectl get pod score-picks-winner -o wide
 ```
 
 ## Key Takeaways: Stage 3 Scoring Determines Winners
@@ -294,5 +294,5 @@ kubectl taint nodes w1-k8s demo- 2>/dev/null || true
 kubectl taint nodes w2-k8s demo- 2>/dev/null || true
 
 # Delete test pod
-kubectl delete pod comprehensive-stage3-winner
+kubectl delete pod score-picks-winner
 ```

@@ -282,7 +282,7 @@ kubectl describe pod filter-leaves-two-nodes-score-zero | grep -A10 Events
    - 1 node → Forced placement (no optimization)
    - 2+ nodes but Filter/Score misaligned → Best node filtered out (suboptimal)
 
-### Contrast with stage3/99.comprehensive-stage3-winner.yaml
+### Contrast with stage3/99.score-picks-winner.yaml
 
 In `stage3/`, we show the opposite scenario:
 - **Stage 2 leaves 4 nodes** (w1, w2, w3, w4)
