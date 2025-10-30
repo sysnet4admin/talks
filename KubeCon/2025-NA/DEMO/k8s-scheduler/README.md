@@ -47,7 +47,9 @@ k8s-scheduler/
 │   ├── 10-fail-toleration.yaml
 │   ├── 11-fail-resource-requests.yaml
 │   ├── 12-fail-topology-spread.yaml
-│   └── 99.comprehensive-bypass-stage3.yaml  # Comprehensive: Stage 2 dominates
+│   ├── 97.filter-leaves-zero-nodes-unschedulable.yaml  # Stage 2 leaves 0 nodes
+│   ├── 98.filter-leaves-one-node-score-bypassed.yaml   # Stage 2 leaves 1 node
+│   └── 99.filter-leaves-two-nodes-score-zero.yaml      # Stage 2 leaves 2 nodes
 ├── stage3/                      # Score (soft constraints) demos
 │   ├── 01-cache-pod.yaml
 │   ├── 02-pass-preferred-nodeaffinity.yaml
@@ -166,14 +168,31 @@ kubectl get pods -l test=stage2-fail -o wide
 # Describe a failed pod to see why
 kubectl describe pod stage2-fail-nodeselector
 
-# Check comprehensive example (Stage 2 makes Stage 3 meaningless)
-kubectl get pod comprehensive-bypass-stage3 -n scheduling-demo -o wide
+# Check comprehensive examples (Stage 2 makes Stage 3 meaningless)
+
+# Example 97: Stage 2 leaves 0 nodes (Unschedulable)
+kubectl apply -f stage2/97.filter-leaves-zero-nodes-unschedulable.yaml
+kubectl get pod filter-leaves-zero-nodes-unschedulable -o wide
+# Expected: STATUS = Pending (no node available)
+# Note: Stage 3 is never evaluated (no candidates to score)
+
+# Example 98: Stage 2 leaves only 1 node
+kubectl apply -f stage2/98.filter-leaves-one-node-score-bypassed.yaml
+kubectl get pod filter-leaves-one-node-score-bypassed -o wide
 # Expected: w5-k8s (only candidate after Stage 2 Filter)
 # Note: Stage 3 preferences (zone-a, HDD) are ignored because w5-k8s is the only option
 
+# Example 99: Stage 2 leaves 2 nodes, but Stage 3's favorite already filtered out
+kubectl apply -f stage2/99.filter-leaves-two-nodes-score-zero.yaml
+kubectl get pod filter-leaves-two-nodes-score-zero -o wide
+# Expected: w3-k8s or w5-k8s (NOT w1-k8s!)
+# Note: Stage 3 prefers w1 (zone-a, 100 points), but Stage 2 already filtered it out
+#       Filter wants zone-b/c, Score wants zone-a → Misalignment
+
 # Cleanup
 kubectl delete pods -l 'test in (stage2-filter,stage2-fail)'
-kubectl delete pod comprehensive-bypass-stage3 -n scheduling-demo
+kubectl delete pods -l scenario=bypass-stage3
+kubectl delete pods -l scenario=bypass-stage3-zero
 ```
 
 ### Stage 3: Scheduler Score (Soft Constraints)
@@ -268,8 +287,8 @@ spec:
   # 1. Scheduling-related fields (before containers)
   nodeName:                    # Stage 1: Bypass scheduler
   nodeSelector:                # Stage 2: Filter by node labels
-  affinity:                    # Stage 2: Filter (required) / Stage 3: Score (preferred)
   tolerations:                 # Stage 2: Filter (allow tainted nodes)
+  affinity:                    # Stage 2: Filter (required) / Stage 3: Score (preferred)
   topologySpreadConstraints:   # Stage 2: Filter / Stage 3: Score
   schedulingGates:             # Stage 4: Block binding until removed
 
@@ -289,7 +308,7 @@ spec:
 - **Stage clarity**: Shows which stage handles each field
 
 **Key ordering rule:**
-- `affinity` comes **before** `tolerations` (both are Stage 2 filters, but affinity is more complex)
+- Stage 2 Filter fields grouped together: `nodeSelector` → `tolerations` → `affinity` (required)
 - All scheduling fields come **before** `containers`
 - Runtime fields (volumes, etc.) come **after** `containers`
 
@@ -370,32 +389,90 @@ This pod combines:
 
 **Key lesson**: Real-world pods often use multiple Stage 2 and Stage 3 constraints together. Stage 2 narrows candidates (w1, w3), then Stage 3 picks the best (w1).
 
-### 2. Stage 2 Makes Stage 3 Meaningless (stage2/99.comprehensive-bypass-stage3.yaml)
+### 2. Stage 2 Makes Stage 3 Meaningless
 
-Demonstrates when hard constraints leave only one candidate, making soft constraints irrelevant:
+Three scenarios demonstrate when Stage 2 filters make Stage 3 scoring irrelevant:
+
+#### 2a. Zero Nodes Remaining (stage2/97.filter-leaves-zero-nodes-unschedulable.yaml)
+
+When hard constraints are too restrictive, no nodes pass and the Pod stays Pending:
 
 ```bash
-# Deploy the test (from stage2 directory)
-kubectl apply -f stage2/99.comprehensive-bypass-stage3.yaml
+# Deploy the test
+kubectl apply -f stage2/97.filter-leaves-zero-nodes-unschedulable.yaml
+
+# Check status
+kubectl get pod filter-leaves-zero-nodes-unschedulable -o wide
+# Expected: STATUS = Pending (no node available)
+
+# Review why scheduling failed
+kubectl describe pod filter-leaves-zero-nodes-unschedulable
+# Note: Stage 2 Filter left 0 candidates (requires zone-c + SSD + gpu toleration)
+# Note: Stage 3 is never evaluated (no candidates to score)
+
+# Cleanup
+kubectl delete pod filter-leaves-zero-nodes-unschedulable
+```
+
+**Key lesson**: When Stage 2 leaves 0 nodes, Stage 3 is never evaluated and the Pod stays Unschedulable.
+
+#### 2b. One Node Remaining (stage2/98.filter-leaves-one-node-score-bypassed.yaml)
+
+When hard constraints leave only one candidate, soft constraints are completely bypassed:
+
+```bash
+# Deploy the test
+kubectl apply -f stage2/98.filter-leaves-one-node-score-bypassed.yaml
 
 # Check placement
-kubectl get pod comprehensive-bypass-stage3 -n scheduling-demo -o wide
-# Expected: w5-k8s (zone-c, SSD)
+kubectl get pod filter-leaves-one-node-score-bypassed -o wide
+# Expected: w5-k8s (zone-c, SSD, GPU taint)
 
 # Review the contradiction
-kubectl describe pod comprehensive-bypass-stage3 -n scheduling-demo
+kubectl describe pod filter-leaves-one-node-score-bypassed
 # Note: Stage 3 prefers zone-a + HDD
 # But: w5-k8s is zone-c + SSD (opposite!)
 # Why: Stage 2 Filter left only w5-k8s as a candidate
-#      Stage 3 preferences had ZERO impact
+#      Stage 3 preferences had ZERO impact (no choice to make)
 
 # Cleanup
-kubectl delete pod comprehensive-bypass-stage3 -n scheduling-demo
+kubectl delete pod filter-leaves-one-node-score-bypassed
 ```
 
-**Key lesson**: Strong Stage 2 filters can make Stage 3 preferences meaningless.
+**Key lesson**: When Stage 2 leaves only 1 node, Stage 3 scoring is completely bypassed.
 
-**Location**: This example is in `stage2/` because it demonstrates the **power of Stage 2 filters** - when Stage 2 is too restrictive, Stage 3 becomes irrelevant.
+#### 2c. Two Nodes, Filter/Score Misalignment (stage2/99.filter-leaves-two-nodes-score-zero.yaml)
+
+When hard constraints exclude what soft constraints prefer most:
+
+```bash
+# Deploy the test
+kubectl apply -f stage2/99.filter-leaves-two-nodes-score-zero.yaml
+
+# Check placement
+kubectl get pod filter-leaves-two-nodes-score-zero -o wide
+# Expected: w3-k8s or w5-k8s (NOT w1-k8s!)
+
+# Review the misalignment
+kubectl describe pod filter-leaves-two-nodes-score-zero
+# Stage 2 Filter: Requires zone-b OR zone-c → w3, w5 remain
+# Stage 3 Score: Prefers zone-a (100 points) → w1 would be best
+# Misalignment: w1 (Stage 3's favorite) was filtered out by Stage 2
+# Result: w3 and w5 both score 0 points
+# Final decision: Based on other factors (w1 cannot be selected)
+
+# Cleanup
+kubectl delete pod filter-leaves-two-nodes-score-zero
+```
+
+**Key lesson**: When Stage 2 filters out Stage 3's preferred nodes, scoring becomes meaningless. Filter decisions dominate over Score preferences.
+
+**Comparison**:
+- **97**: 0 nodes left → Stage 3 never evaluated (Unschedulable)
+- **98**: 1 node left → Stage 3 not evaluated (no choice)
+- **99**: 2 nodes left → Stage 3's favorite (w1) filtered out → meaningless
+
+**Location**: All three examples are in `stage2/` because they demonstrate the **power of Stage 2 filters** - when Stage 2 is too restrictive or misaligned with Stage 3, Stage 3 becomes irrelevant.
 
 ### 3. Stage 3 Actually Matters (stage3/99.comprehensive-stage3-winner.yaml)
 
@@ -437,15 +514,19 @@ kubectl delete pod comprehensive-stage3-winner -n scheduling-demo
 
 ### Comparison Summary
 
-| Test | Location | Stage 2 Candidates | Stage 3 Impact | Final Node | Scenario |
-|------|----------|-------------------|----------------|------------|----------|
-| comprehensive-complex-scheduling.yaml | Root | w1, w3 (multiple filters) | **Picks the best** | w1-k8s | Real-world: Both stages matter |
-| 99.comprehensive-bypass-stage3.yaml | stage2/ | Only w5-k8s | **No impact** | w5-k8s (forced) | Stage 2 too strong |
-| 99.comprehensive-stage3-winner.yaml | stage3/ | w1, w2, w3, w4 | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
+| Test | Location | Stage 2 Candidates | Stage 3 Best Node | Stage 3 Impact | Final Node | Scenario |
+|------|----------|-------------------|-------------------|----------------|------------|----------|
+| comprehensive-complex-scheduling.yaml | Root | w1, w3 (multiple filters) | w1 (available) | **Picks the best** | w1-k8s | Real-world: Both stages matter |
+| 97.filter-leaves-zero-nodes-unschedulable.yaml | stage2/ | None (0 nodes) | N/A | **Never evaluated** | None (Pending) | Stage 2 too restrictive: Fail |
+| 98.filter-leaves-one-node-score-bypassed.yaml | stage2/ | Only w5-k8s | N/A | **Not evaluated** | w5-k8s (forced) | Stage 2 too strong: No choice |
+| 99.filter-leaves-two-nodes-score-zero.yaml | stage2/ | w3, w5 (zone-b/c) | **w1 (filtered out!)** | **Meaningless** | w3-k8s or w5-k8s | Filter excludes Score's favorite |
+| 99.comprehensive-stage3-winner.yaml | stage3/ | w1, w2, w3, w4 | w1 (available) | **Decides placement** | w1-k8s (best score) | Stage 3 is the decider |
 
 **Learning Path**:
 1. Start with individual stage examples (stage0/ → stage1/ → stage2/ → stage3/ → stage4/)
-2. Each stage includes a comprehensive example at the end (99.xxx.yaml)
+2. Each stage includes comprehensive examples:
+   - stage2: 97, 98, 99 (when Stage 3 becomes meaningless)
+   - stage3: 99 (when Stage 3 decides the winner)
 3. Finish with the root comprehensive-complex-scheduling.yaml for the complete picture
 
 ## Troubleshooting
