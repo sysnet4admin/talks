@@ -9,10 +9,10 @@ metadata:
   labels:
     test: stage1-nodename
 spec:
-  nodeName: w4-k8s  # Direct placement on w4-k8s node (has hdd, not ssd)
+  nodeName: w5-k8s  # Direct placement on w5-k8s node (has ssd and gpu taint)
   # Note: The following conditions are ignored by nodeName
   nodeSelector:
-    disktype: ssd  # Ignored! w4-k8s has hdd, but nodeName bypasses this check
+    disktype: ssd  # Ignored by scheduler, but w5-k8s has ssd so kubelet admission passes
   tolerations:
   - key: gpu
     operator: Equal

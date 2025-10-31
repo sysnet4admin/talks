@@ -1,16 +1,21 @@
 # Kubernetes Scheduler Deep Dive
 
-Comprehensive demonstration of Kubernetes scheduling across all 5 stages, from admission control to pod-node binding.
+Comprehensive demonstration of Kubernetes scheduling across all 7 stages, from admission control to container runtime.
 
 ## Overview
 
 This demo provides hands-on examples for understanding how Kubernetes schedules pods, covering:
 
+### Presentation Stages (Stages 0-4)
 - **Stage 0**: Admission Control (ResourceQuota, LimitRange, DRA validation)
 - **Stage 1**: nodeName (Bypass Scheduler)
 - **Stage 2**: Scheduler Filter (Hard Constraints)
 - **Stage 3**: Scheduler Score (Soft Constraints)
 - **Stage 4**: Binding Cycle (Pod-Node Binding)
+
+### Additional Stages (NOT in presentation - for deeper understanding)
+- **Stage 5**: Kubelet Admission (Node-level validation)
+- **Stage 6**: Container Runtime (Pod execution)
 
 ## Kubernetes Version
 
@@ -62,13 +67,28 @@ k8s-scheduler/
 │   ├── 09-lowscore-topology-spread-soft.yaml
 │   ├── 99.score-picks-winner.yaml                          # Stage 3 scoring decides
 │   └── taint-node.sh                        # Interactive taint management script
-└── stage4/                      # Binding cycle demos
-    ├── 01-block-scheduling-gate.yaml
-    ├── 02-pass-no-scheduling-gate.yaml
-    ├── 03-storageclass.yaml
-    ├── 04-persistentvolume.yaml
-    ├── 05-persistentvolumeclaim.yaml
-    └── 06-pass-volume-late-binding.yaml
+├── stage4/                      # Binding cycle demos
+│   ├── 01-block-scheduling-gate.yaml
+│   ├── 02-pass-no-scheduling-gate.yaml
+│   ├── 03-storageclass.yaml
+│   ├── 04-persistentvolume.yaml
+│   ├── 05-persistentvolumeclaim.yaml
+│   └── 06-pass-volume-late-binding.yaml
+├── stage5/                      # Kubelet Admission demos (NOT in presentation)
+│   ├── 01-fail-nodeaffinity-mismatch.yaml
+│   ├── 02-fail-nodeselector-mismatch.yaml
+│   ├── 03-pass-nodeaffinity-match.yaml
+│   ├── 04-pass-taint-noexecute-tolerated.yaml
+│   ├── 05-pass-taint-noschedule-bypassed.yaml
+│   └── 06-fail-insufficient-resources.yaml
+└── stage6/                      # Container Runtime demos (NOT in presentation)
+    ├── 01-fail-image-pull-error.yaml
+    ├── 02-fail-crashloopbackoff.yaml
+    ├── 03-fail-invalid-command.yaml
+    ├── 04-fail-readiness-probe.yaml
+    ├── 05-fail-liveness-probe.yaml
+    ├── 06-pass-successful-run.yaml
+    └── 07-fail-oom-killed.yaml
 ```
 
 ## Prerequisites
@@ -278,6 +298,121 @@ kubectl delete pv demo-pv-w1
 kubectl delete sc late-binding-sc
 ```
 
+---
+
+## Additional Stages (NOT in Presentation)
+
+**Note**: Stage 5 and Stage 6 are NOT covered in the KubeCon presentation. These stages are included for deeper understanding of what happens after the scheduler completes its work.
+
+### Stage 5: Kubelet Admission (Node-level Validation)
+
+Demonstrates kubelet-level validation that occurs even when the scheduler is bypassed:
+
+```bash
+# Test: nodeAffinity validation by kubelet (FAIL)
+kubectl apply -f stage5/01-fail-nodeaffinity-mismatch.yaml
+kubectl get pod stage5-fail-nodeaffinity -o wide
+# Expected: Status = NodeAffinity (Failed)
+# Message: "Predicate NodeAffinity failed"
+
+# Test: nodeSelector validation by kubelet (FAIL)
+kubectl apply -f stage5/02-fail-nodeselector-mismatch.yaml
+kubectl get pod stage5-fail-nodeselector -o wide
+# Expected: Status = NodeAffinity (Failed)
+
+# Test: nodeAffinity matches target node (PASS)
+kubectl apply -f stage5/03-pass-nodeaffinity-match.yaml
+kubectl get pod stage5-pass-nodeaffinity -o wide
+# Expected: Status = Running on w5-k8s
+
+# Test: NoExecute taint validated by kubelet (PASS with toleration)
+kubectl apply -f stage5/04-pass-taint-noexecute-tolerated.yaml
+kubectl get pod stage5-pass-noexecute-taint -o wide
+# Expected: Status = Running on w6-k8s
+
+# Test: NoSchedule taint bypassed by kubelet (PASS without toleration)
+kubectl apply -f stage5/05-pass-taint-noschedule-bypassed.yaml
+kubectl get pod stage5-pass-noschedule-bypassed -o wide
+# Expected: Status = Running on w5-k8s (despite gpu:NoSchedule taint)
+
+# Test: Resource availability check (may FAIL if insufficient resources)
+kubectl apply -f stage5/06-fail-insufficient-resources.yaml
+kubectl get pod stage5-fail-insufficient-resources -o wide
+# Expected: Status = Failed or OutOfmemory (if node lacks 1000Gi memory)
+
+# Check detailed events
+kubectl describe pod stage5-fail-nodeaffinity
+kubectl describe pod stage5-pass-noschedule-bypassed
+
+# Cleanup
+kubectl delete pods -l test=stage5-kubelet-admission
+```
+
+**Key Insights for Stage 5:**
+- Kubelet validates `nodeAffinity` and `nodeSelector` even when `nodeName` bypasses scheduler
+- `NoExecute` taints are validated by kubelet (admission + eviction)
+- `NoSchedule` taints are NOT validated by kubelet (scheduler-only)
+- Resource availability is re-checked at kubelet admission time
+
+### Stage 6: Container Runtime (Pod Execution)
+
+Demonstrates container runtime failures that occur after successful scheduling and kubelet admission:
+
+```bash
+# Test: Image pull failure (FAIL)
+kubectl apply -f stage6/01-fail-image-pull-error.yaml
+kubectl get pod stage6-fail-image-pull -o wide
+# Expected: Status = ImagePullBackOff or ErrImagePull
+
+# Test: Container crash (FAIL)
+kubectl apply -f stage6/02-fail-crashloopbackoff.yaml
+kubectl get pod stage6-fail-crashloop -o wide
+# Expected: Status = CrashLoopBackOff
+
+# Test: Invalid container command (FAIL)
+kubectl apply -f stage6/03-fail-invalid-command.yaml
+kubectl get pod stage6-fail-invalid-command -o wide
+# Expected: Status = CrashLoopBackOff
+
+# Test: Readiness probe failure (Running but not Ready)
+kubectl apply -f stage6/04-fail-readiness-probe.yaml
+kubectl get pod stage6-fail-readiness -o wide
+# Expected: Status = Running, READY = 0/1
+
+# Test: Liveness probe failure (Gets restarted)
+kubectl apply -f stage6/05-fail-liveness-probe.yaml
+sleep 60
+kubectl get pod stage6-fail-liveness -o wide
+# Expected: RESTARTS > 0 (container killed and restarted)
+
+# Test: Successful execution (PASS)
+kubectl apply -f stage6/06-pass-successful-run.yaml
+kubectl get pod stage6-pass-successful -o wide
+# Expected: Status = Running, READY = 1/1
+
+# Test: OOMKilled (FAIL)
+kubectl apply -f stage6/07-fail-oom-killed.yaml
+sleep 10
+kubectl get pod stage6-fail-oom -o wide
+# Expected: Status = OOMKilled or CrashLoopBackOff
+# Last State: Terminated, Reason: OOMKilled, Exit Code: 137
+
+# Check detailed events and container status
+kubectl describe pod stage6-fail-image-pull
+kubectl describe pod stage6-fail-liveness
+kubectl describe pod stage6-fail-oom
+
+# Cleanup
+kubectl delete pods -l test=stage6-container-runtime
+```
+
+**Key Insights for Stage 6:**
+- Image pull happens after all scheduling decisions are made
+- Container failures (crash, invalid command) occur at runtime, not scheduling time
+- Health probes (readiness/liveness) operate after container starts
+- Resource limits (memory) are enforced by container runtime/kernel, not scheduler
+- All Stage 6 failures occur AFTER the Pod has been successfully scheduled and admitted
+
 ## Standard YAML Field Ordering
 
 For consistency and readability, all Pod specs in this demo follow this standard field order:
@@ -314,19 +449,22 @@ spec:
 
 ## Key Concepts
 
-### Stage 0: Admission Control
+### Presentation Stages (0-4)
+
+#### Stage 0: Admission Control
 - Validates resource requests before reaching scheduler
 - Enforces namespace quotas (ResourceQuota) and container limits (LimitRange)
 - Validates ResourceClaims for DRA (when applicable)
 - Rejects invalid pods immediately at API server level
 
-### Stage 1: nodeName
-- **Bypasses all scheduler logic**
+#### Stage 1: nodeName
+- **Bypasses scheduler logic** (Filter and Score stages)
 - Directly assigns pod to specified node
-- Ignores: nodeSelector, affinity, tolerations, taints
+- **Does NOT bypass kubelet admission** (see Stage 5)
+- Scheduler ignores: nodeSelector, affinity, tolerations, taints
 - Use case: Manual placement, testing
 
-### Stage 2: Filter (Hard Constraints)
+#### Stage 2: Filter (Hard Constraints)
 - **All** conditions must pass
 - Filtering criteria:
   - NodeSelector
@@ -337,7 +475,7 @@ spec:
   - TopologySpreadConstraints (whenUnsatisfiable: DoNotSchedule)
 - Failure = Pod stays Pending
 
-### Stage 3: Score (Soft Constraints)
+#### Stage 3: Score (Soft Constraints)
 - **Preferences** influence placement
 - Scoring criteria:
   - NodeAffinity (preferred)
@@ -347,13 +485,38 @@ spec:
   - Resource balancing
 - Failure = Still schedules, but on less optimal node
 
-### Stage 4: Binding Cycle
+#### Stage 4: Binding Cycle
 Five extension points:
 1. **Reserve**: Reserve resources (volumes, devices)
 2. **Permit**: Gate/approval (schedulingGates)
 3. **PreBind**: Prepare resources (volume binding)
 4. **Bind**: Update API server
 5. **PostBind**: Notifications
+
+### Additional Stages (NOT in Presentation)
+
+#### Stage 5: Kubelet Admission
+- **Node-level validation** before accepting Pod
+- Validates even when `nodeName` bypasses scheduler
+- Validation checks:
+  - nodeAffinity and nodeSelector (ENFORCED)
+  - NoExecute taints (ENFORCED)
+  - NoSchedule taints (NOT enforced - scheduler-only)
+  - Resource availability (re-checked)
+- Failure = Pod rejected by kubelet with status like "NodeAffinity"
+
+#### Stage 6: Container Runtime
+- **Container execution** after scheduling and admission
+- Runtime operations:
+  - Image pull from registry
+  - Container creation and startup
+  - Health checks (readiness/liveness probes)
+  - Resource limit enforcement (OOM killer)
+- Failures occur AFTER successful scheduling:
+  - ImagePullBackOff: Image not found
+  - CrashLoopBackOff: Container crashes
+  - OOMKilled: Memory limit exceeded
+  - Not Ready: Readiness probe fails
 
 ## Comprehensive Tests
 
@@ -541,8 +704,9 @@ kubectl describe pod <pod-name>
 kubectl get events --sort-by='.lastTimestamp' | grep FailedScheduling
 ```
 
-### Common issues
+### Common issues by stage
 
+**Presentation Stages:**
 - **Stage 0**: ResourceQuota or LimitRange violations (rejected before scheduling)
 - **Stage 1**: nodeName to non-existent node (stays Pending)
 - **Stage 2**: Missing toleration for tainted node (no nodes available)
@@ -550,6 +714,15 @@ kubectl get events --sort-by='.lastTimestamp' | grep FailedScheduling
 - **Stage 2**: Insufficient resources on all nodes (no nodes available)
 - **Stage 3**: All pods schedule successfully (soft constraints don't block)
 - **Stage 4**: schedulingGates blocking binding (SchedulingGated status)
+
+**Additional Stages (NOT in presentation):**
+- **Stage 5**: nodeAffinity mismatch (Status: NodeAffinity, rejected by kubelet)
+- **Stage 5**: nodeSelector mismatch (Status: NodeAffinity, rejected by kubelet)
+- **Stage 5**: NoExecute taint without toleration (rejected by kubelet)
+- **Stage 6**: Image pull failure (Status: ImagePullBackOff or ErrImagePull)
+- **Stage 6**: Container crash (Status: CrashLoopBackOff, check logs)
+- **Stage 6**: OOMKilled (Status: OOMKilled, increase memory limits)
+- **Stage 6**: Readiness probe failure (Running but 0/1 Ready)
 
 ## Advanced Topics
 
