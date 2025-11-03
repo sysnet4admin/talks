@@ -25,7 +25,6 @@ This demo provides hands-on examples for understanding how Kubernetes schedules 
 
 ```
 k8s-scheduler/
-├── CLAUDE.md                           # Detailed technical reference
 ├── comprehensive-complex-scheduling.yaml   # Complex real-world scheduling example
 ├── stage0/                             # Admission Control demos
 │   ├── 00-namespace.yaml
@@ -738,15 +737,15 @@ Dynamic Resource Allocation is a Kubernetes feature for managing specialized har
 - Not suitable for VM-based demo environments
 
 **Where to learn more:**
-- DRA examples and detailed documentation are available in `CLAUDE.md`
 - DRA operates across multiple scheduling stages (Stage 0 Validation, Stage 2 Filter, Stage 3 Score, Stage 4 Binding)
 - Feature is enabled by default in Kubernetes v1.34+ (core API stable; some features may require feature gates)
+- See the [Kubernetes DRA Documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/) for detailed examples
 
 **If you want to test DRA:**
 1. Install a DRA-compatible driver in your cluster
 2. Verify ResourceSlices exist: `kubectl get resourceslices`
 3. Create DeviceClass for your devices
-4. Refer to examples in `CLAUDE.md`
+4. Refer to the official Kubernetes documentation for examples
 
 ### Custom Scheduler
 
@@ -763,13 +762,6 @@ spec:
 - **fail**: Expected to fail (Pending)
 - **block**: Temporarily blocked (SchedulingGated)
 - **lowscore**: Succeeds but with lower score
-
-## Documentation
-
-See `CLAUDE.md` for detailed technical reference including:
-- Complete scheduling flow diagrams
-- Extension point documentation
-- Advanced configuration examples
 
 ## Best Practices
 
