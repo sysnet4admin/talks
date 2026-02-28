@@ -1,2 +1,30 @@
 .vagrant/
 .DS_Store
+
+# Secrets & Environment
+.env
+.env.*
+*.secret
+
+# Certificates & Keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Kubernetes
+kubeconfig
+*-kubeconfig
+*.kubeconfig
+
+# Cloud Credentials
+credentials
+credentials.json
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# AWS
+.aws/credentials
+.aws/config
