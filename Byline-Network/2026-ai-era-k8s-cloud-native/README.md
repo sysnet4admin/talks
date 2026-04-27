@@ -2,8 +2,8 @@
 ## AI-Driven SRE: AI와 함께 만드는 쿠버네티스 운영 표준
 - **Date:** Tuesday March 24, 2026
 - **Event:** 바이라인네트워크 | AI 시대를 준비하는 쿠버네티스 - 클라우드 네이티브의 재발견
-- **Link:**
-- **Youtube:**
+- **Link:** [2주 걸리던 SRE 업무, AI 동료와 하니 이틀로 줄어](https://byline.network/2026/04/23-592)
+- **Youtube:** [[쿠버네티스 웨비나] AI-Driven SRE: AI와 함께 만드는 쿠버네티스 운영 표준ㅣ조훈 CNCF Ambassador](https://youtu.be/VhmC-XqTf1k?si=beUpWTi4HtBzn0JG)
 - **KO-Doc:** [AI-Driven SRE - AI와 함께 만드는 쿠버네티스 운영 표준_Final_v1.2.pdf](https://github.com/sysnet4admin/talks/blob/main/Byline-Network/2026-ai-era-k8s-cloud-native/%5BSpeaker%20Deck%5D%20AI-Driven%20SRE%20-%20AI%EC%99%80%20%ED%95%A8%EA%BB%98%20%EB%A7%8C%EB%93%9C%EB%8A%94%20%EC%BF%A0%EB%B2%84%EB%84%A4%ED%8B%B0%EC%8A%A4%20%EC%9A%B4%EC%98%81%20%ED%91%9C%EC%A4%80_Final_v1.2.pdf)
 - **DEMO-Dir:** [demo](demo)
 ---

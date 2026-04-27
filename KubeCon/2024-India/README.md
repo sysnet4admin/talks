@@ -1,10 +1,10 @@
 
 ## Enhance Kubernetes Security with the Common Expression Language (CEL)
 - **Date:** Thursday December 12, 2024 12:20pm - 12:55pm IST
-- **Link:** https://kccncind2024.sched.com/event/1mVST
-- **Youtube:** https://youtu.be/0PB4g4wl6Dk?si=lN7xi-wVWBL6xtJX
+- **Link:** [KubeCon + CloudNativeCon India 2024: Enhance Kubernetes Security with the Common Expression Language (CEL)](https://kccncind2024.sched.com/event/1mVST)
+- **Youtube:** [Enhance Kubernetes Security with the Common Expression Language (CEL) - Hoon Jo, Megazone](https://youtu.be/0PB4g4wl6Dk?si=lN7xi-wVWBL6xtJX)
 - **EN-Doc:** [Enhance Kubernetes Security with the Common Expression Language (CEL).pdf](https://github.com/sysnet4admin/talks/blob/main/KubeCon/2024-India/%5BKC%2BCNC%5D%20Enhance%20Kubernetes%20Security%20with%20the%20Common%20Expression%20Language%20(CEL).pdf)
 - **DEMO-Dir:** [k8s-Native-CEL](DEMO)
 ---
-- **KO-Doc:** https://yozm.wishket.com/magazine/detail/2922/
+- **KO-Doc:** [CEL만 알면 나도 쿠버네티스 보안 정책 전문가!](https://yozm.wishket.com/magazine/detail/2922/)
 
