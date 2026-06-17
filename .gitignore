@@ -1,6 +1,10 @@
 .vagrant/
 .DS_Store
 
+# Presentation sources — public은 PDF만 공개 (편집본 노출 금지, *.key는 아래 키 섹션이 커버)
+*.pptx
+*.ppt
+
 # Secrets & Environment
 .env
 .env.*
