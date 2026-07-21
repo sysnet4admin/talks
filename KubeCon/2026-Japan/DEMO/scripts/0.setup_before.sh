@@ -27,20 +27,39 @@ echo "==> [2/5] deploy backend + Ingress"
 kubectl apply -f "$HERE/manifests/00-backend.yaml"
 kubectl apply -f "$HERE/manifests/01-ingress.yaml"
 
-# MetalLB is also CLUSTER infra — applied by cluster/up.sh AFTER `vagrant up` (not by vagrant up
-# itself). If you ran bare `vagrant up`, MetalLB is missing and every LoadBalancer Service sits
-# <pending> forever, so ingress-nginx never gets $DEMO_IP. We don't print-and-pass on an empty IP
-# anymore (that silently let the demo start half-ready); we WAIT for the IP and self-heal if absent.
-echo "==> [3/5] wait for the LB IP $DEMO_IP (self-heal MetalLB if missing)"
+# Why ingress-nginx might not get $DEMO_IP — two distinct traps, both self-healed here:
+#  (a) MetalLB missing. It's CLUSTER infra applied by cluster/up.sh AFTER `vagrant up` (not by
+#      vagrant up itself). Bare `vagrant up` → no MetalLB → every LB Service sits <pending> forever.
+#  (b) The NGF Gateway is already holding $DEMO_IP. Both the ingress-nginx controller Service and the
+#      Gateway's LB Service request the SAME $DEMO_IP; whichever claims it first wins and the other
+#      stays <pending>. After a snapshot resume the boot order is non-deterministic, so the Gateway
+#      can grab $DEMO_IP first, leaving ingress-nginx stuck in MetalLB AllocationFailed. This is the
+#      recurring rehearsal trap: state comes back INVERTED from the BEFORE we want.
+# We don't print-and-pass on an empty IP anymore (that silently let the demo start half-ready);
+# we WAIT for the IP and self-heal whichever cause applies.
+echo "==> [3/5] wait for the LB IP $DEMO_IP (self-heal MetalLB / reclaim from Gateway if needed)"
 _lb_ip() { kubectl -n ingress-nginx get svc ingress-nginx-controller \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true; }
+_gw_lb_ip() { kubectl -n nginx-gateway get svc jp-gateway-nginx \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true; }
 _wait_lb_ip() { local i ip; for i in $(seq 1 10); do ip="$(_lb_ip)"; \
   [ -n "$ip" ] && { echo "    LB IP = $ip"; return 0; }; sleep 3; done; return 1; }
 if ! _wait_lb_ip; then
-  echo "    no LB IP after ~30s → ensuring MetalLB (cluster/metallb.sh; idempotent)"
-  echo "    (this happens when only 'vagrant up' was run instead of cluster/up.sh)"
-  "$HERE/cluster/metallb.sh"
-  _wait_lb_ip || { echo "✗ still no LB IP after installing MetalLB. Check:" >&2
+  if [ "$(_gw_lb_ip)" = "$DEMO_IP" ]; then
+    # trap (b): Gateway grabbed $DEMO_IP first (snapshot-resume order flip). Delete the Gateway to
+    # release it (NGF removes its data-plane + LB Service); ingress-nginx then claims $DEMO_IP, and
+    # [5/5] recreates the Gateway, which correctly sits <pending> behind ingress-nginx.
+    echo "    $DEMO_IP is held by the NGF Gateway (snapshot-resume order flip)"
+    echo "    → deleting Gateway jp-gateway to hand $DEMO_IP back to ingress-nginx"
+    kubectl -n nginx-gateway delete gateway jp-gateway --ignore-not-found >/dev/null 2>&1 || true
+  else
+    # trap (a): no MetalLB at all.
+    echo "    no LB IP after ~30s → ensuring MetalLB (cluster/metallb.sh; idempotent)"
+    echo "    (this happens when only 'vagrant up' was run instead of cluster/up.sh)"
+    "$HERE/cluster/metallb.sh"
+  fi
+  _wait_lb_ip || { echo "✗ still no LB IP after remediation. Check:" >&2
+    echo "    kubectl -n ingress-nginx get svc; kubectl -n nginx-gateway get svc,gateway" >&2
     echo "    kubectl -n metallb-system get pods,ipaddresspool,l2advertisement" >&2; exit 1; }
 fi
 
