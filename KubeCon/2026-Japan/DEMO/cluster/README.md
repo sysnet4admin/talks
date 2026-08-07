@@ -47,4 +47,4 @@ cd cluster
 | context | `gateway-PoC` | `kubecon-demo` |
 | SSH ports | 60160 range | 60160 range |
 
-Original provisioning: `~/11.Github/<research-workspace>/gateway-PoC/test-cluster/`
+Original provisioning: the `gateway-PoC` test cluster in the author's local research workspace.
