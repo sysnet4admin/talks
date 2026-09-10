@@ -22,9 +22,16 @@ Git에 남고, 기록이 쌓여 다음 프로젝트에서 다시 쓰였습니다
 그럼에도 셈을 해 보면 답은 분명합니다. 몇 사람이 나눠서 하던 관리를 한 사람이 하게
 되었고, 오히려 시간 여유가 생겨 개선까지 할 수 있게 되었습니다.
 
+## 같은 날 맡은 다른 슬롯: AAIF Hosted Projects
+
+행사 앞부분에서 Agentic AI Foundation이 호스팅하는 프로젝트 5개를 소개했습니다.
+MCP, Goose, AGENTS.md, agentgateway, 그리고 2026년에 새로 합류한 A2A입니다.
+각 프로젝트가 무엇을 하는지, 서로 어떤 관계인지를 한 장씩 다뤘습니다. 영어 덱입니다.
+
 ## 자료
 
-- 발표 자료: [PDF](./Agentic%20AI%20Night%20Seoul%202026%20AI야%20GitOps를%20만나볼래_Hoon%20Jo,CNCF%20%26%20AAIF%20Ambassador.pdf) (21장)
+- 「AI야 GitOps를 만나볼래?」: [PDF](./Agentic%20AI%20Night%20Seoul%202026%20AI야%20GitOps를%20만나볼래_Hoon%20Jo,CNCF%20%26%20AAIF%20Ambassador.pdf) (21장, 한국어)
+- 「AAIF Hosted Projects」: [PDF](./Agentic%20AI%20Night%20Seoul%202026%20AAIF%20Hosted%20Projects_Hoon%20Jo,CNCF%20%26%20AAIF%20Ambassador.pdf) (7장, 영어)
 
 ## 함께 보기
 
