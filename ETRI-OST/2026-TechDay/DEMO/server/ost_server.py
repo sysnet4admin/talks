@@ -5,7 +5,7 @@ initialize 핸드셰이크도 Mcp-Session-Id도 없습니다. 이 서버도 세�
 이전 요청을 저장하지도 않습니다. 그래서 어느 인스턴스가 받아도 같은 결과를 응답합니다.
 
 실행:
-  /tmp/ostvenv/bin/python server/ost_server.py
+  ~/.cache/ost-demo/venv/bin/python server/ost_server.py
 """
 import os
 

@@ -7,7 +7,11 @@
 # set -e 는 일부러 끈다. 한 단계가 삐끗해도 나머지 준비는 계속되어야 한다.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV="${OST_VENV:-/tmp/ostvenv}"
+# venv 를 /tmp 에 두지 않는다. 재부팅 때문이 아니라 macOS 가 하루 한 번 도는
+# 청소에 먹힌다. 2026-09-16 에 9/11 에 만든 venv 가 이걸로 썩었다. 디렉터리는
+# 남고 파일만 지워져서 site-packages 에 껍데기 415개와 .so 3개만 남았다.
+# 그 상태에서 import mcp 가 네임스페이스 패키지로 성공해 검사까지 통과했다.
+VENV="${OST_VENV:-$HOME/.cache/ost-demo/venv}"
 PY="$VENV/bin/python"
 URL="${MCP_URL:-http://127.0.0.1:8200/mcp}"
 BASE_MODEL="${OST_BASE_MODEL:-gemma4:e2b-it-qat}"
@@ -78,19 +82,37 @@ else
 fi
 
 # ── 5. venv 와 mcp SDK ────────────────────────────────────────────────
-# /tmp 는 재부팅으로 사라진다. agentgateway 측정에서 이것 때문에 한 시간을 날렸다.
+# 검사는 import 성공 여부로 하지 않는다. 껍데기 디렉터리만 남아도 파이썬은 그것을
+# 네임스페이스 패키지로 보고 import 를 통과시킨다. 데모가 실제로 쓰는 이름까지
+# 가져와 봐야 살아 있는 설치인지 알 수 있다(2026-09-16).
+ost_mcp_ok() {
+  "$PY" - <<'EOF' 2>/dev/null
+import importlib.metadata as m
+from mcp.server.mcpserver import MCPServer       # 데모 서버가 쓰는 바로 그 이름
+print(m.version("mcp"))
+EOF
+}
+
 step "[5/8] venv 와 mcp SDK" "있으면 즉시 / 없으면 2분 30초"
-if "$PY" -c "import mcp" 2>/dev/null; then
-  ok "mcp $("$PY" -c 'import importlib.metadata as m; print(m.version("mcp"))' 2>/dev/null)"
+MCPVER="$(ost_mcp_ok)"
+if [ -n "$MCPVER" ]; then
+  ok "mcp $MCPVER"
 else
-  work "$VENV 를 새로 만듭니다 (/tmp 는 재부팅으로 사라집니다)"
+  # 남아 있는 것을 고쳐 쓰지 않고 지우고 다시 만든다. venv 는 기존 디렉터리 위에
+  # 덮어써도 lib 를 정리하지 않아 썩은 site-packages 가 그대로 살아남는다.
+  work "$VENV 를 지우고 새로 만듭니다"
   t=$(date +%s.%N)
-  { /opt/homebrew/bin/python3.13 -m venv "$VENV" 2>/dev/null || python3 -m venv "$VENV"; } \
-    && "$VENV/bin/pip" -q install --upgrade pip && "$VENV/bin/pip" -q install "mcp>=2.0"
+  rm -rf "$VENV"
+  mkdir -p "$(dirname "$VENV")"
+  { /opt/homebrew/bin/python3.13 -m venv --clear "$VENV" 2>/dev/null \
+      || python3 -m venv --clear "$VENV"; } \
+    && "$VENV/bin/python" -m ensurepip --upgrade >/dev/null 2>&1 \
+    && "$VENV/bin/python" -m pip -q install --upgrade pip \
+    && "$VENV/bin/python" -m pip -q install "mcp>=2.0"
   since "$t"
-  "$PY" -c "import mcp" 2>/dev/null \
-    && ok "mcp $("$PY" -c 'import importlib.metadata as m; print(m.version("mcp"))' 2>/dev/null)" \
-    || bad "mcp SDK 설치 실패. 네트워크 확인"
+  MCPVER="$(ost_mcp_ok)"
+  [ -n "$MCPVER" ] && ok "mcp $MCPVER" \
+    || bad "mcp SDK 설치 실패. 네트워크를 확인하고 다시 실행하세요"
 fi
 
 # goose 배너에 작업 디렉토리가 찍힌다. 저장소 경로에는 사용자 이름이 들어가므로

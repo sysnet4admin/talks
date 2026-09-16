@@ -5,7 +5,7 @@
 # 네 칸을 다 채워야 호환 규칙이 보인다. 구 클라이언트는 신 서버에 연결되고 신
 # 클라이언트는 구 서버에 못 붙는다. 그 방향이 이 표에서 읽힌다.
 set -uo pipefail
-PY="${OST_PY:-/tmp/ostvenv/bin/python}"
+PY="${OST_PY:-$HOME/.cache/ost-demo/venv/bin/python}"
 OLD_PORT="${OST_OLD_PORT:-8100}"
 NEW_PORT="${OST_NEW1_PORT:-8200}"
 

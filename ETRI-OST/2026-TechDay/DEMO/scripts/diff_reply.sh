@@ -4,7 +4,7 @@
 # 2단계 후반이다. 신 스펙 응답만 전부 보여 주면 구 스펙과 무엇이 다른지 알 수
 # 없다. 헤더와 본문을 각각 비교하면 다른 곳이 한 줄뿐이라는 것이 보인다.
 set -uo pipefail
-PY="${OST_PY:-/tmp/ostvenv/bin/python}"
+PY="${OST_PY:-$HOME/.cache/ost-demo/venv/bin/python}"
 OLD_PORT="${OST_OLD_PORT:-8100}"
 NEW_PORT="${OST_NEW1_PORT:-8200}"
 

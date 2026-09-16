@@ -7,7 +7,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 URL="${MCP_URL:-http://127.0.0.1:8200/mcp}"
-PY="${OST_PY:-/tmp/ostvenv/bin/python}"
+PY="${OST_PY:-$HOME/.cache/ost-demo/venv/bin/python}"
 MODEL="${OST_MODEL:-ost-demo}"
 BASE_MODEL="${OST_BASE_MODEL:-gemma4:e2b-it-qat}"   # 4단계 화면에서 이름을 밝힌다
 # 4단계에서 2번 쓰는 질문. 한 곳에서 관리해야 두 명령이 정말 같다.

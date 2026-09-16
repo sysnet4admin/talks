@@ -26,7 +26,7 @@ NEW2="http://127.0.0.1:$NEW2_PORT/mcp"
 # 하나의 27%, 1초는 15% 를 쓴다. 대부분 프로세스를 띄우는 비용이다.
 # 1초로 두면 최근 여덟 줄이 8초를 덮어 죽였다 살리는 구간이 화면에 다 남는다.
 GAP="${OST_GAP:-1.0}"
-PY="${OST_PY:-/tmp/ostvenv/bin/python}"
+PY="${OST_PY:-$HOME/.cache/ost-demo/venv/bin/python}"
 KEEP="${OST_KEEP:-8}"          # 최근 기록으로 남길 줄 수
 CODE="2026-AI-013"
 
